@@ -361,7 +361,7 @@ export default function GanttChart() {
       <div style={{background:'white',borderBottom:'1px solid #e5e7eb',padding:'16px 24px',flexShrink:0,boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}}>
           <div>
-            <h1 style={{fontSize:20,fontWeight:'bold',color:'#111827',margin:0}}>앱 간트차트</h1>
+            <h1 style={{fontSize:20,fontWeight:'bold',color:'#111827',margin:0}}>샌디앱 간트차트</h1>
             <p style={{fontSize:12,color:'#9ca3af',margin:'2px 0 0'}}>2026년 · Supabase 연동</p>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
