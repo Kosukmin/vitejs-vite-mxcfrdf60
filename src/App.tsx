@@ -87,7 +87,7 @@ export default function GanttChart() {
   const save = async (p: any[]) => {
     setProjects(p);
     setSaving(true);
-    try { await supabase.from('gantt_projects').upsert({ id:1, data:p }); } catch {}
+    try { await supabase.from('gantt_projects').upsert({ id:2, data:p }); } catch {}
     finally { setSaving(false); }
   };
 
@@ -210,7 +210,7 @@ export default function GanttChart() {
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `샌디앱 간트차트_${new Date().toISOString().slice(0,10)}.csv`;
+    a.href = url; a.download = `샌디버스_간트차트_${new Date().toISOString().slice(0,10)}.csv`;
     a.click(); URL.revokeObjectURL(url);
   };
 
@@ -361,7 +361,7 @@ export default function GanttChart() {
       <div style={{background:'white',borderBottom:'1px solid #e5e7eb',padding:'16px 24px',flexShrink:0,boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}}>
           <div>
-            <h1 style={{fontSize:20,fontWeight:'bold',color:'#111827',margin:0}}>샌디앱 간트차트</h1>
+            <h1 style={{fontSize:20,fontWeight:'bold',color:'#111827',margin:0}}>앱 간트차트</h1>
             <p style={{fontSize:12,color:'#9ca3af',margin:'2px 0 0'}}>2026년 · Supabase 연동</p>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
