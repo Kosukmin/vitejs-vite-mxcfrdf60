@@ -1,6 +1,6 @@
 // src/App.tsx 전체 내용을 이걸로 교체하세요!
-const { createClient } = (window as any).supabase;
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+const { createClient } = (window as any).supabase;
 
 const SUPABASE_URL = 'https://tcmcrpszpbawgwolzuno.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ktL_xVzsDjv3wmbrO8j0Tg_DP2vYBHO';
