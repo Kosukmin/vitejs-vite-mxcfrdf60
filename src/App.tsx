@@ -35,7 +35,6 @@ const CATEGORY_COLORS: Record<string, any> = {
   '개발': { bg:'#d1fae5', text:'#065f46', border:'#10b981' },
   '보안': { bg:'#fee2e2', text:'#991b1b', border:'#ef4444' },
 };
-const CATEGORY_ORDER: Record<string, number> = { '영업':0, '기획':1, '운영':2, '개발':3, '보안':4 };
 const CATEGORIES = ['영업','기획','운영','개발','보안'];
 
 const toDateStr = (d: Date) => d.toISOString().split('T')[0];
@@ -474,7 +473,6 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
     } else if (src.type === 'project' && target.type === 'project' && src.id !== target.id && src.group === target.group) {
       // 같은 그룹 내 프로젝트 순서 변경
       const grpProjs = projects.filter(p => (p.group||'미분류') === src.group);
-      const otherProjs = projects.filter(p => (p.group||'미분류') !== src.group);
       const srcIdx = grpProjs.findIndex((p:any) => p.id === src.id);
       const tgtIdx = grpProjs.findIndex((p:any) => p.id === target.id);
       const reordered = [...grpProjs];
@@ -628,7 +626,6 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
 
   const TaskEditModal = ({ task, pid, onClose }: any) => {
     const [fd, setFd] = useState({...task});
-    const others = projects.find(p=>p.id===pid)?.tasks.filter((t:any)=>t.id!==task.id)||[];
     return (
       <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:16}}>
         <div style={{background:'white',borderRadius:12,padding:24,width:modalW,maxHeight:'90vh',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}} onClick={e=>e.stopPropagation()}>
@@ -991,7 +988,6 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
                       })();
                       const catColor = CATEGORY_COLORS[proj.category];
                       const barBg = catColor ? catColor.border : c.bar;
-                      const barBgLight = catColor ? catColor.bg : c.barLight;
                       return (
                         <div key={proj.id}
                           onMouseEnter={e=>{setTooltip({startDate,endDate,name:proj.name});setTooltipPos({x:e.clientX,y:e.clientY});}}
