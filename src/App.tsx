@@ -67,7 +67,7 @@ function LoginScreen({ onLogin }: { onLogin: (user: any) => void }) {
         {/* 로고 */}
         <div style={{textAlign:'center',marginBottom:40}}>
           <div style={{width:56,height:56,borderRadius:16,background:'linear-gradient(135deg,#6366f1,#a855f7)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,margin:'0 auto 16px',boxShadow:'0 4px 20px rgba(99,102,241,0.4)'}}>📊</div>
-          <h1 style={{fontSize:22,fontWeight:'bold',color:'#f1f5f9',margin:'0 0 6px',letterSpacing:'-0.5px'}}>샌디버스 간트차트</h1>
+          <h1 style={{fontSize:22,fontWeight:'bold',color:'#f1f5f9',margin:'0 0 6px',letterSpacing:'-0.5px'}}>샌디앱 간트차트</h1>
           <p style={{fontSize:13,color:'rgba(148,163,184,0.6)',margin:0}}>팀원만 접근 가능한 프로젝트 관리 도구</p>
         </div>
         {/* 로그인 카드 */}
@@ -270,7 +270,7 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('gantt_projects').select('data').eq('id', 1).single();
+      const { data, error } = await supabase.from('gantt_projects').select('data').eq('id', 2).single();
       if (!error && data) setProjects(data.data || []);
     } catch {}
     finally { setLoading(false); }
@@ -288,7 +288,7 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
     setProjects(p);
     setSaving(true);
     try {
-      await supabase.from('gantt_projects').upsert({ id: 1, data: p });
+      await supabase.from('gantt_projects').upsert({ id: 2, data: p });
     } catch {}
     finally { setSaving(false); }
 
@@ -524,7 +524,7 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `샌디버스_간트차트_${new Date().toISOString().slice(0,10)}.csv`;
+    a.href = url; a.download = `샌디앱_간트차트_${new Date().toISOString().slice(0,10)}.csv`;
     a.click(); URL.revokeObjectURL(url);
   };
 
@@ -816,7 +816,7 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
           <div style={{display:'flex',alignItems:'center',gap:12}}>
             <div style={{width:36,height:36,borderRadius:10,background:'linear-gradient(135deg,#6366f1,#a855f7)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,boxShadow:'0 2px 8px rgba(99,102,241,0.4)'}}>📊</div>
             <div>
-              <h1 style={{fontSize:18,fontWeight:'bold',color:'#f1f5f9',margin:0,letterSpacing:'-0.3px'}}>샌디버스 간트차트</h1>
+              <h1 style={{fontSize:18,fontWeight:'bold',color:'#f1f5f9',margin:0,letterSpacing:'-0.3px'}}>샌디앱 간트차트</h1>
               <p style={{fontSize:11,color:'rgba(148,163,184,0.8)',margin:'2px 0 0'}}>2026년 · Supabase 연동</p>
             </div>
           </div>
