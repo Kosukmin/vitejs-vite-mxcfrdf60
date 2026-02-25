@@ -67,7 +67,7 @@ function LoginScreen({ onLogin }: { onLogin: (user: any) => void }) {
         {/* 로고 */}
         <div style={{textAlign:'center',marginBottom:40}}>
           <div style={{width:56,height:56,borderRadius:16,background:'linear-gradient(135deg,#6366f1,#a855f7)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,margin:'0 auto 16px',boxShadow:'0 4px 20px rgba(99,102,241,0.4)'}}>📊</div>
-          <h1 style={{fontSize:22,fontWeight:'bold',color:'#f1f5f9',margin:'0 0 6px',letterSpacing:'-0.5px'}}>샌디앱 간트차트</h1>
+          <h1 style={{fontSize:22,fontWeight:'bold',color:'#f1f5f9',margin:'0 0 6px',letterSpacing:'-0.5px'}}>샌디버스 간트차트</h1>
           <p style={{fontSize:13,color:'rgba(148,163,184,0.6)',margin:0}}>팀원만 접근 가능한 프로젝트 관리 도구</p>
         </div>
         {/* 로그인 카드 */}
@@ -270,7 +270,7 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('gantt_projects').select('data').eq('id', 2).single();
+      const { data, error } = await supabase.from('gantt_projects').select('data').eq('id', 1).single();
       if (!error && data) setProjects(data.data || []);
     } catch {}
     finally { setLoading(false); }
@@ -288,7 +288,7 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
     setProjects(p);
     setSaving(true);
     try {
-      await supabase.from('gantt_projects').upsert({ id: 2, data: p });
+      await supabase.from('gantt_projects').upsert({ id: 1, data: p });
     } catch {}
     finally { setSaving(false); }
 
@@ -524,7 +524,7 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `샌디앱_간트차트_${new Date().toISOString().slice(0,10)}.csv`;
+    a.href = url; a.download = `샌디버스_간트차트_${new Date().toISOString().slice(0,10)}.csv`;
     a.click(); URL.revokeObjectURL(url);
   };
 
@@ -816,7 +816,7 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
           <div style={{display:'flex',alignItems:'center',gap:12}}>
             <div style={{width:36,height:36,borderRadius:10,background:'linear-gradient(135deg,#6366f1,#a855f7)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,boxShadow:'0 2px 8px rgba(99,102,241,0.4)'}}>📊</div>
             <div>
-              <h1 style={{fontSize:18,fontWeight:'bold',color:'#f1f5f9',margin:0,letterSpacing:'-0.3px'}}>샌디앱 간트차트</h1>
+              <h1 style={{fontSize:18,fontWeight:'bold',color:'#f1f5f9',margin:0,letterSpacing:'-0.3px'}}>샌디버스 간트차트</h1>
               <p style={{fontSize:11,color:'rgba(148,163,184,0.8)',margin:'2px 0 0'}}>2026년 · Supabase 연동</p>
             </div>
           </div>
@@ -1054,7 +1054,7 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
                                 onMouseLeave={()=>{if(!isProjDrag)setTooltip(null);}}>
                                 <div style={{position:'absolute',left:0,top:0,bottom:0,width:8,cursor:'ew-resize',zIndex:8,borderRadius:'4px 0 0 4px'}} onMouseDown={e=>handleMouseDown(e,proj.id,'__proj__','start')} />
                                 <div style={{width:`${projProg}%`,height:'100%',background:catColor?catColor.border:c.bar,borderRadius:4,overflow:'hidden'}} />
-                                <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:projProg>50?'#fff':catColor?catColor.text:c.text,fontWeight:600,pointerEvents:'none'}}>{projProg}%</div>
+                                {projPos.width>40 ? <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:projProg>50?'#fff':catColor?catColor.text:c.text,fontWeight:600,pointerEvents:'none'}}>{projProg}%</div> : <div style={{position:'absolute',left:projPos.width+5,top:'50%',transform:'translateY(-50%)',whiteSpace:'nowrap',fontSize:11,color:'#374151',fontWeight:600,pointerEvents:'none'}}>{projProg}%</div>}
                                 <div style={{position:'absolute',right:0,top:0,bottom:0,width:8,cursor:'ew-resize',zIndex:8,borderRadius:'0 4px 4px 0'}} onMouseDown={e=>handleMouseDown(e,proj.id,'__proj__','end')} />
                               </div>
                             );
@@ -1062,7 +1062,7 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
                           {projPos && proj.tasks.length>0 && (
                             <div style={{position:'absolute',left:projPos.left,width:projPos.width,height:22,top:'50%',transform:'translateY(-50%)',background:catColor?catColor.bg:c.barLight,borderRadius:4,overflow:'hidden',border:`1px solid ${catColor?catColor.border:c.bar}55`,zIndex:6}}>
                               <div style={{width:`${projProg}%`,height:'100%',background:catColor?catColor.border:c.bar,borderRadius:4}} />
-                              <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:projProg>50?'#fff':catColor?catColor.text:c.text,fontWeight:600}}>{projProg}%</div>
+                              {projPos.width>40 ? <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:projProg>50?'#fff':catColor?catColor.text:c.text,fontWeight:600}}>{projProg}%</div> : <div style={{position:'absolute',left:projPos.width+5,top:'50%',transform:'translateY(-50%)',whiteSpace:'nowrap',fontSize:11,color:'#374151',fontWeight:600}}>{projProg}%</div>}
                             </div>
                           )}
                         </div>
@@ -1108,7 +1108,7 @@ function GanttChart({ user, onLogout }: { user: any; onLogout: () => void }) {
                                   onMouseLeave={()=>{if(!isDrag)setTooltip(null);}}>
                                   <div style={{position:'absolute',left:0,top:0,bottom:0,width:8,cursor:'ew-resize',zIndex:8,borderRadius:'5px 0 0 5px'}} onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'start')} />
                                   <div style={{width:`${task.progress||0}%`,height:'100%',background:catColor?catColor.border:c.bar,borderRadius:4,pointerEvents:'none'}} />
-                                  <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:600,pointerEvents:'none',color:(task.progress||0)>50?'#fff':catColor?catColor.text:c.text}}>{task.progress||0}%</div>
+                                  {pos.width>40 ? <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:600,pointerEvents:'none',color:(task.progress||0)>50?'#fff':catColor?catColor.text:c.text}}>{task.progress||0}%</div> : <div style={{position:'absolute',left:pos.width+5,top:'50%',transform:'translateY(-50%)',whiteSpace:'nowrap',fontSize:11,fontWeight:600,pointerEvents:'none',color:'#374151'}}>{task.progress||0}%</div>}
                                   <div style={{position:'absolute',right:0,top:0,bottom:0,width:8,cursor:'ew-resize',zIndex:8,borderRadius:'0 5px 5px 0'}} onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'end')} />
                                 </div>
                               )}
