@@ -6,8 +6,7 @@ const SUPABASE_URL = 'https://tcmcrpszpbawgwolzuno.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ktL_xVzsDjv3wmbrO8j0Tg_DP2vYBHO';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const CHART_START = new Date('2026-01-01T00:00:00');
-const CHART_END   = new Date('2026-12-31T00:00:00');
+
 
 const calcCols = (w: number, numCols: number = 12) => {
   const leftCol     = Math.max(260, Math.floor(w * 0.30));
