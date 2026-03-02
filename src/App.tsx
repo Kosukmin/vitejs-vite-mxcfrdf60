@@ -74,15 +74,15 @@ const DAY_HEADERS = (() => {
   return items;
 })();
 
-const calcCols = (w: number, numCols: number = 12) => {
-  const leftCol     = Math.max(260, Math.floor(w * 0.30));
-  const assigneeCol = Math.max(56,  Math.floor(w * 0.06));
-  const subCol      = Math.max(56,  Math.floor(w * 0.06));
-  const timelineTotal = w - leftCol - assigneeCol - subCol;
-  const monthCol    = Math.floor(timelineTotal / numCols);
-  const timelineW   = monthCol * 12;
-  return { leftCol, assigneeCol, subCol, monthCol, timelineW };
-};
+// const calcCols = (w: number, numCols: number = 12) => {
+//   const leftCol     = Math.max(260, Math.floor(w * 0.30));
+//   const assigneeCol = Math.max(56,  Math.floor(w * 0.06));
+//   const subCol      = Math.max(56,  Math.floor(w * 0.06));
+//   const timelineTotal = w - leftCol - assigneeCol - subCol;
+//   const monthCol    = Math.floor(timelineTotal / numCols);
+//   const timelineW   = monthCol * 12;
+//   return { leftCol, assigneeCol, subCol, monthCol, timelineW };
+// }; // 미사용 제거
 
 const COLOR_MAP: Record<string, any> = {
   blue:   { bar:'#3b82f6', barLight:'#bfdbfe', text:'#1e40af', border:'#3b82f6', rowBg:'#f8faff' },
