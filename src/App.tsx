@@ -320,9 +320,9 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const V_START      = new Date('2026-01-01T00:00:00');
   const V_END        = new Date('2026-12-31T00:00:00');
   const V_TOTAL_DAYS = 365;
-  const V_MONTHS     = MONTH_LABELS; // 12개월 레이블 (정적 배열)
+  // const V_MONTHS = MONTH_LABELS; // 미사용 제거
 
-  const [cols, setCols] = useState(() => calcCols(window.innerWidth, 12)); // 호환용(미사용)
+  // const [cols, setCols] = useState(() => calcCols(window.innerWidth, 12)); // 미사용 제거
 
   const [projects, setProjects]               = useState<any[]>([]);
   const [searchQuery, setSearchQuery]         = useState('');
@@ -1312,9 +1312,9 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                       const laned: { item: any; lane: number }[] = new Array(projBars.length);
                       sorted.forEach(({ item, origIdx }) => {
                         if (!item.pos) { laned[origIdx] = { item, lane: 0 }; return; }
-                        const laneIdx = laneEnds.findIndex(end => end + BAR_GAP_PX <= item.pos.left);
+                        const laneIdx = laneEnds.findIndex(end => end + BAR_GAP_PX <= item.pos!.left);
                         const lane = laneIdx === -1 ? laneEnds.length : laneIdx;
-                        laneEnds[lane] = item.pos.left + item.pos.width;
+                        laneEnds[lane] = item.pos!.left + item.pos!.width;
                         laned[origIdx] = { item, lane };
                       });
 
@@ -1323,7 +1323,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                       const containerH = Math.max(44, totalH + 12);
                       const topBase = (containerH - totalH) / 2;
 
-                      return laned.map(({ item, lane }, idx) => {
+                      return laned.map(({ item, lane }, _idx) => {
                         if (!item.pos) return null;
                         const topOffset = topBase + lane * (ROW_H + GAP);
                         return (
