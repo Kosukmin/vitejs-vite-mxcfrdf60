@@ -8,10 +8,76 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 
 
+// ── 줌 레벨별 레이아웃 계산 ──────────────────────────────
+// 핵심 개념: TIMELINE_W = 1년 전체 너비 (모든 뷰 공통)
+// year: colUnit=월, 화면에 12개월 꽉 참 (스크롤 없음)
+// half: colUnit=월, 화면에 6개월 꽉 참 + 나머지 6개월 스크롤
+// week: colUnit=주(52px), 52주 스크롤
+// day:  colUnit=일(28px), 365일 스크롤
+type ViewMode = 'year'|'half'|'week'|'day';
+
+const WEEK_COL_W = 52;  // 1주 너비(px)
+const DAY_COL_W  = 28;  // 1일 너비(px)
+
+const calcLayout = (mode: ViewMode, screenW: number) => {
+  const leftCol     = Math.max(260, Math.floor(screenW * 0.30));
+  const assigneeCol = Math.max(56,  Math.floor(screenW * 0.06));
+  const subCol      = Math.max(56,  Math.floor(screenW * 0.06));
+  const availW      = screenW - leftCol - assigneeCol - subCol;
+
+  let colW: number, totalTimelineW: number;
+  if (mode === 'year') {
+    colW = Math.floor(availW / 12);
+    totalTimelineW = colW * 12;
+  } else if (mode === 'half') {
+    // 화면에 6개월 꽉 참, 12개월 전체 너비로 스크롤
+    colW = Math.floor(availW / 6);
+    totalTimelineW = colW * 12;
+  } else if (mode === 'week') {
+    colW = WEEK_COL_W;
+    totalTimelineW = WEEK_COL_W * 52;
+  } else { // day
+    colW = DAY_COL_W;
+    totalTimelineW = DAY_COL_W * 365;
+  }
+  return { leftCol, assigneeCol, subCol, colW, totalTimelineW };
+};
+
+// 정적 헤더 데이터 (렌더마다 재생성 방지)
+const MONTH_LABELS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+// 주 헤더: 52개 항목 - 월별로 W1부터 리셋 (한 번만 생성)
+const WEEK_HEADERS = (() => {
+  const items: { label: string; isFirstOfMonth: boolean; month: number; weekInMonth: number }[] = [];
+  const base = new Date('2026-01-01T00:00:00');
+  let currentMonth = -1;
+  let weekInMonth = 0;
+  for (let w = 0; w < 52; w++) {
+    const d = new Date(base); d.setDate(d.getDate() + w * 7);
+    const month = d.getMonth() + 1;
+    const isFirstOfMonth = month !== currentMonth;
+    if (isFirstOfMonth) { currentMonth = month; weekInMonth = 1; }
+    else { weekInMonth++; }
+    items.push({ label: `W${weekInMonth}`, isFirstOfMonth, month, weekInMonth });
+  }
+  return items;
+})();
+
+// 일 헤더: 365개 - DOM 직접 생성 대신 배열로 (useMemo 등에서 사용)
+const DAY_HEADERS = (() => {
+  const items: { day: number; month: number; isFirst: boolean }[] = [];
+  const base = new Date('2026-01-01T00:00:00');
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(base); d.setDate(d.getDate() + i);
+    items.push({ day: d.getDate(), month: d.getMonth()+1, isFirst: d.getDate()===1 });
+  }
+  return items;
+})();
+
 const calcCols = (w: number, numCols: number = 12) => {
   const leftCol     = Math.max(260, Math.floor(w * 0.30));
-  const assigneeCol = Math.max(56,  Math.floor(w * 0.06));  // 정
-  const subCol      = Math.max(56,  Math.floor(w * 0.06));  // 부
+  const assigneeCol = Math.max(56,  Math.floor(w * 0.06));
+  const subCol      = Math.max(56,  Math.floor(w * 0.06));
   const timelineTotal = w - leftCol - assigneeCol - subCol;
   const monthCol    = Math.floor(timelineTotal / numCols);
   const timelineW   = monthCol * 12;
@@ -222,22 +288,41 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   };
   const currentApp = APP_CONFIG[appId];
 
-  const [viewMode, setViewMode] = useState<'half'|'year'>('year');
+  const [viewMode, setViewMode] = useState<ViewMode>('year');
 
-  const viewConfig = (() => {
-    const allMonths = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-    const start = new Date('2026-01-01T00:00:00');
-    const end   = new Date('2026-12-31T00:00:00');
-    const numCols = viewMode === 'half' ? 6 : 12;
-    return { start, end, months: allMonths, numCols };
-  })();
-  const V_START = viewConfig.start;
-  const V_END   = viewConfig.end;
-  const V_TOTAL_DAYS = (V_END.getTime() - V_START.getTime()) / 86400000;
-  const V_MONTHS = viewConfig.months;
+  // ── 레이아웃 (useMemo로 viewMode/화면폭 변경시만 재계산) ──
+  const [screenW, setScreenW] = useState(window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setScreenW(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
-  const [cols, setCols] = useState(() => calcCols(window.innerWidth, viewConfig.numCols));
-  const { leftCol: LEFT_COL, assigneeCol: ASSIGNEE_COL, subCol: SUB_COL, monthCol: MONTH_COL, timelineW: TIMELINE_W } = cols;
+  const layout   = React.useMemo(() => calcLayout(viewMode, screenW), [viewMode, screenW]);
+  const LEFT_COL     = layout.leftCol;
+  const ASSIGNEE_COL = layout.assigneeCol;
+  const SUB_COL      = layout.subCol;
+  const MONTH_COL    = layout.colW;
+  const TIMELINE_W   = layout.totalTimelineW;
+
+  // 세로 구분선: 헤더 셀과 동일한 borderRight 방식 — 픽셀 퍼펙트 일치
+  // 모든 뷰에서 동일한 색상(#e8ecf8)으로 통일, 월 경계 강조 없음
+  const gridColCount = viewMode === 'day' ? 365 : viewMode === 'week' ? 52 : 12;
+  const GridLines = (
+    <div style={{position:'absolute',inset:0,display:'flex',pointerEvents:'none',zIndex:0}}>
+      {Array.from({length: gridColCount}, (_,i) => (
+        <div key={i} style={{width:MONTH_COL,minWidth:MONTH_COL,flexShrink:0,height:'100%',borderRight:i<gridColCount-1?'1px solid #e8ecf8':'none'}} />
+      ))}
+    </div>
+  );
+
+  // 항상 1년 전체 기준
+  const V_START      = new Date('2026-01-01T00:00:00');
+  const V_END        = new Date('2026-12-31T00:00:00');
+  const V_TOTAL_DAYS = 365;
+  const V_MONTHS     = MONTH_LABELS; // 12개월 레이블 (정적 배열)
+
+  const [cols, setCols] = useState(() => calcCols(window.innerWidth, 12)); // 호환용(미사용)
 
   const [projects, setProjects]               = useState<any[]>([]);
   const [searchQuery, setSearchQuery]         = useState('');
@@ -276,26 +361,16 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   // dragging state 변경 시 ref도 동기화
   useEffect(() => { draggingRef.current = dragging; }, [dragging]);
 
-  useEffect(() => {
-    const onResize = () => {
-      setCols(calcCols(window.innerWidth, viewConfig.numCols));
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [viewConfig.numCols]);
-
-  useEffect(() => {
-    setCols(calcCols(window.innerWidth, viewConfig.numCols));
-  }, [viewMode]);
-
   const getPos = useCallback((s: string, e: string) => {
     if (!s || !e) return null;
     const sd = parseDate(s), ed = parseDate(e);
     if (isNaN(sd.getTime()) || isNaN(ed.getTime())) return null;
-    const left  = Math.max(0, (sd.getTime() - V_START.getTime()) / 86400000 / V_TOTAL_DAYS * TIMELINE_W);
-    const right = Math.min(TIMELINE_W, (ed.getTime() - V_START.getTime()) / 86400000 / V_TOTAL_DAYS * TIMELINE_W);
+    const startDays = (sd.getTime() - V_START.getTime()) / 86400000;
+    const endDays   = (ed.getTime() - V_START.getTime()) / 86400000;
+    const left  = Math.max(0, startDays / V_TOTAL_DAYS * TIMELINE_W);
+    const right = Math.min(TIMELINE_W, endDays / V_TOTAL_DAYS * TIMELINE_W);
     return { left, width: Math.max(6, right - left) };
-  }, [TIMELINE_W, V_START, V_TOTAL_DAYS]);
+  }, [TIMELINE_W]);
 
   const assignLanes = (tasks: any[]) => {
     const BAR_GAP_PX = 4;
@@ -984,8 +1059,14 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               ⬇ CSV
             </button>
             <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.07)',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',padding:2,gap:2}}>
-              {([['half','6개월'] as const,['year','12개월'] as const]).map(([mode,label])=>(
-                <button key={mode} onClick={()=>setViewMode(mode)}
+              <span style={{fontSize:10,color:'rgba(148,163,184,0.5)',padding:'0 4px',userSelect:'none'}}>🔍</span>
+              {([
+                ['year','월','12개월 한화면'] as const,
+                ['half','월↔','6개월씩 스크롤'] as const,
+                ['week','주','주단위 스크롤'] as const,
+                ['day','일','일단위 스크롤'] as const,
+              ]).map(([mode,label,title])=>(
+                <button key={mode} onClick={()=>setViewMode(mode)} title={title}
                   style={{height:26,padding:'0 10px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode===mode?700:400,
                     background:viewMode===mode?'rgba(99,102,241,0.9)':'transparent',
                     color:viewMode===mode?'white':'rgba(148,163,184,0.8)',
@@ -1067,16 +1148,75 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       <div style={{overflowX:'auto',overflowY:'auto',flex:1}}>
         <div style={{minWidth:totalW}}>
           {/* Column Header */}
-          <div style={{display:'flex',position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW}}>
-            <div style={{width:LEFT_COL,minWidth:LEFT_COL,flexShrink:0,padding:'12px 16px',fontWeight:600,fontSize:14,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',position:'sticky',left:0,zIndex:10}}>프로젝트 / Task</div>
-            <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,padding:'12px 4px',fontWeight:600,fontSize:13,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',textAlign:'center',position:'sticky',left:LEFT_COL,zIndex:10}}>담당(정)</div>
-            <div style={{width:SUB_COL,minWidth:SUB_COL,flexShrink:0,padding:'12px 4px',fontWeight:600,fontSize:13,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',textAlign:'center',position:'sticky',left:LEFT_COL+ASSIGNEE_COL,zIndex:10}}>담당(부)</div>
-            <div style={{display:'flex',width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0}}>
-              {V_MONTHS.map((m,i)=>(
-                <div key={i} style={{width:MONTH_COL,minWidth:MONTH_COL,textAlign:'center',padding:'12px 0',fontSize:12,fontWeight:600,color:'#4b5563',borderRight:i<V_MONTHS.length-1?'1px solid #e5e7eb':'none',background:'#f9fafb'}}>{m}</div>
-              ))}
+          {(viewMode === 'day' || viewMode === 'week') ? (
+            // ── 일/주 뷰: 2단 헤더 — 월 띠 14px + 날짜/주 행 28px = 42px (월 보기와 동일)
+            <div style={{position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'2px solid #e2e8f0',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW}}>
+              {/* 1행: 월 띠 (20px) */}
+              <div style={{display:'flex',height:20,borderBottom:'1px solid #e8ecf8'}}>
+                <div style={{width:LEFT_COL+ASSIGNEE_COL+SUB_COL,minWidth:LEFT_COL+ASSIGNEE_COL+SUB_COL,flexShrink:0,background:'#f9fafb',borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:10}} />
+                <div style={{display:'flex',width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,overflow:'hidden'}}>
+                  {(viewMode === 'day' ? DAY_HEADERS : WEEK_HEADERS).reduce((acc: any[], h: any) => {
+                    const isFirst = viewMode === 'day' ? h.isFirst : h.isFirstOfMonth;
+                    if (isFirst || acc.length === 0) acc.push({ month: h.month, count: 1 });
+                    else acc[acc.length - 1].count++;
+                    return acc;
+                  }, []).map((seg: any, i: number) => (
+                    <div key={i} style={{
+                      width: seg.count * MONTH_COL, minWidth: seg.count * MONTH_COL, flexShrink: 0,
+                      height: 20,
+                      background: ['#eff6ff','#f0fdf4','#fef3c7','#fdf4ff','#fff7ed','#f0fdfa','#fef9c3','#faf5ff','#fff1f2','#f0f9ff','#fefce8','#f5f3ff'][i % 12],
+                      borderRight: '1px solid #e8ecf8',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                    }}>
+                      <span style={{fontSize:10,fontWeight:700,color:'#374151',whiteSpace:'nowrap'}}>{seg.month}월</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* 2행: 날짜 or 주 번호 (22px) */}
+              <div style={{display:'flex',height:22}}>
+                <div style={{width:LEFT_COL,minWidth:LEFT_COL,flexShrink:0,padding:'0 16px',fontWeight:600,fontSize:13,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',position:'sticky',left:0,zIndex:10,display:'flex',alignItems:'center'}}>프로젝트 / Task</div>
+                <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,fontWeight:600,fontSize:12,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',textAlign:'center',position:'sticky',left:LEFT_COL,zIndex:10,display:'flex',alignItems:'center',justifyContent:'center'}}>담당(정)</div>
+                <div style={{width:SUB_COL,minWidth:SUB_COL,flexShrink:0,fontWeight:600,fontSize:12,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',textAlign:'center',position:'sticky',left:LEFT_COL+ASSIGNEE_COL,zIndex:10,display:'flex',alignItems:'center',justifyContent:'center'}}>담당(부)</div>
+                <div style={{display:'flex',width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,overflow:'hidden'}}>
+                  {viewMode === 'week'
+                    ? WEEK_HEADERS.map((h,i)=>(
+                        <div key={i} style={{
+                          width:MONTH_COL,minWidth:MONTH_COL,flexShrink:0,
+                          display:'flex',alignItems:'center',justifyContent:'center',
+                          fontSize:12,fontWeight:h.isFirstOfMonth?700:500,
+                          color:h.isFirstOfMonth?'#1d4ed8':'#4b5563',
+                          borderRight:'1px solid #e8ecf8',
+                          background:h.isFirstOfMonth?'#eff6ff':'#f9fafb',
+                        }}>{h.label}</div>
+                      ))
+                    : DAY_HEADERS.map((h,i)=>(
+                        <div key={i} style={{
+                          width:MONTH_COL,minWidth:MONTH_COL,flexShrink:0,
+                          display:'flex',alignItems:'center',justifyContent:'center',
+                          fontSize:11,fontWeight:h.isFirst?600:400,
+                          color:h.isFirst?'#1d4ed8':'#6b7280',
+                          borderRight:'1px solid #e8ecf8',
+                          background:h.isFirst?'#eff6ff':'#f9fafb',
+                        }}>{h.day}</div>
+                      ))
+                  }
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            // ── 연도/반년 뷰: 1단 헤더 (42px 고정 — 일/주 2단 헤더와 동일)
+            <div style={{display:'flex',position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW,height:42}}>
+              <div style={{width:LEFT_COL,minWidth:LEFT_COL,flexShrink:0,padding:'0 16px',fontWeight:600,fontSize:14,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',position:'sticky',left:0,zIndex:10,display:'flex',alignItems:'center'}}>프로젝트 / Task</div>
+              <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,fontWeight:600,fontSize:13,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',textAlign:'center',position:'sticky',left:LEFT_COL,zIndex:10,display:'flex',alignItems:'center',justifyContent:'center'}}>담당(정)</div>
+              <div style={{width:SUB_COL,minWidth:SUB_COL,flexShrink:0,fontWeight:600,fontSize:13,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',textAlign:'center',position:'sticky',left:LEFT_COL+ASSIGNEE_COL,zIndex:10,display:'flex',alignItems:'center',justifyContent:'center'}}>담당(부)</div>
+              <div style={{display:'flex',width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,alignItems:'center'}}>
+                {MONTH_LABELS.map((m,i)=>(
+                  <div key={i} style={{width:MONTH_COL,minWidth:MONTH_COL,flexShrink:0,textAlign:'center',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:600,color:'#4b5563',borderRight:i<11?'1px solid #e5e7eb':'none',background:'#f9fafb'}}>{m}</div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Rows */}
           <div style={{width:totalW}}>
@@ -1141,7 +1281,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                     const laneCount=laneEnds.length||1;
                     return Math.max(44,laneCount*(ROW_H+GAP)-GAP+12);
                   })()}}>
-                    {V_MONTHS.map((_,i)=><div key={i} style={{width:MONTH_COL,height:'100%',position:'absolute',left:i*MONTH_COL,top:0,borderRight:i<V_MONTHS.length-1?'1px solid #e8ecf8':'none'}} />)}
+                    {GridLines}
                     {todayLeft!==null && <div style={{position:'absolute',left:todayLeft,top:0,bottom:0,width:2,background:'#ef4444',opacity:0.3,zIndex:5}} />}
                     {collapsedGroups.has(group.name) && (()=>{
                       // 프로젝트별 실제 기간 계산
@@ -1251,7 +1391,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                             return Math.max(52, laneCount * 26 + 12);
                           })()
                         }}>
-                          {V_MONTHS.map((_,i)=><div key={i} style={{width:MONTH_COL,height:'100%',position:'absolute',left:i*MONTH_COL,top:0,borderRight:i<V_MONTHS.length-1?'1px solid #f3f4f6':'none'}} />)}
+                          {GridLines}
                           {todayLeft!==null && <div style={{position:'absolute',left:todayLeft,top:0,bottom:0,width:2,background:'#ef4444',opacity:0.7,zIndex:5}} />}
                           {projPos && proj.tasks.length===0 && (()=>{
                             const isProjDrag=dragging?.pid===proj.id && dragging?.tid==='__proj__';
@@ -1363,7 +1503,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                               {task.subAssignee||<span style={{color:'#d1d5db'}}>-</span>}
                             </div>
                             <div style={{width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,position:'relative',minHeight:46,display:'flex',alignItems:'center'}}>
-                              {V_MONTHS.map((_,i)=><div key={i} style={{width:MONTH_COL,height:'100%',position:'absolute',left:i*MONTH_COL,top:0,borderRight:i<V_MONTHS.length-1?'1px solid #f3f4f6':'none'}} />)}
+                              {GridLines}
                               {todayLeft!==null && <div style={{position:'absolute',left:todayLeft,top:0,bottom:0,width:2,background:'#ef4444',opacity:0.4,zIndex:5}} />}
                               {pos && (
                                 <div style={{position:'absolute',left:pos.left,width:pos.width,height:26,top:'50%',transform:'translateY(-50%)',background:catColor?catColor.bg:c.barLight,borderRadius:5,border:`1px solid ${catColor?catColor.border:c.bar}55`,cursor:'grab',zIndex:6,overflow:'visible'}}
