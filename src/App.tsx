@@ -9,15 +9,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 
 // ── 줌 레벨별 레이아웃 계산 ──────────────────────────────
-// 핵심 개념: TIMELINE_W = 1년 전체 너비 (모든 뷰 공통)
-// year: colUnit=월, 화면에 12개월 꽉 참 (스크롤 없음)
-// half: colUnit=월, 화면에 6개월 꽉 참 + 나머지 6개월 스크롤
-// week: colUnit=주(52px), 52주 스크롤
-// day:  colUnit=일(28px), 365일 스크롤
 type ViewMode = 'year'|'half'|'week'|'day';
 
-const WEEK_COL_W = 52;  // 1주 너비(px)
-const DAY_COL_W  = 28;  // 1일 너비(px)
+const WEEK_COL_W = 52;
+const DAY_COL_W  = 28;
 
 const calcLayout = (mode: ViewMode, screenW: number) => {
   const leftCol     = Math.max(260, Math.floor(screenW * 0.30));
@@ -30,23 +25,20 @@ const calcLayout = (mode: ViewMode, screenW: number) => {
     colW = Math.floor(availW / 12);
     totalTimelineW = colW * 12;
   } else if (mode === 'half') {
-    // 화면에 6개월 꽉 참, 12개월 전체 너비로 스크롤
     colW = Math.floor(availW / 6);
     totalTimelineW = colW * 12;
   } else if (mode === 'week') {
     colW = WEEK_COL_W;
     totalTimelineW = WEEK_COL_W * 52;
-  } else { // day
+  } else {
     colW = DAY_COL_W;
     totalTimelineW = DAY_COL_W * 365;
   }
   return { leftCol, assigneeCol, subCol, colW, totalTimelineW };
 };
 
-// 정적 헤더 데이터 (렌더마다 재생성 방지)
 const MONTH_LABELS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 
-// 주 헤더: 52개 항목 - 월별로 W1부터 리셋 (한 번만 생성)
 const WEEK_HEADERS = (() => {
   const items: { label: string; isFirstOfMonth: boolean; month: number; weekInMonth: number }[] = [];
   const base = new Date('2026-01-01T00:00:00');
@@ -63,7 +55,6 @@ const WEEK_HEADERS = (() => {
   return items;
 })();
 
-// 일 헤더: 365개 - DOM 직접 생성 대신 배열로 (useMemo 등에서 사용)
 const DAY_HEADERS = (() => {
   const items: { day: number; month: number; isFirst: boolean }[] = [];
   const base = new Date('2026-01-01T00:00:00');
@@ -73,16 +64,6 @@ const DAY_HEADERS = (() => {
   }
   return items;
 })();
-
-// const calcCols = (w: number, numCols: number = 12) => {
-//   const leftCol     = Math.max(260, Math.floor(w * 0.30));
-//   const assigneeCol = Math.max(56,  Math.floor(w * 0.06));
-//   const subCol      = Math.max(56,  Math.floor(w * 0.06));
-//   const timelineTotal = w - leftCol - assigneeCol - subCol;
-//   const monthCol    = Math.floor(timelineTotal / numCols);
-//   const timelineW   = monthCol * 12;
-//   return { leftCol, assigneeCol, subCol, monthCol, timelineW };
-// }; // 미사용 제거
 
 const COLOR_MAP: Record<string, any> = {
   blue:   { bar:'#3b82f6', barLight:'#bfdbfe', text:'#1e40af', border:'#3b82f6', rowBg:'#f8faff' },
@@ -101,7 +82,12 @@ const CATEGORY_COLORS: Record<string, any> = {
 };
 const CATEGORIES = ['영업','기획','운영','개발','보안'];
 
-const toDateStr = (d: Date) => d.toISOString().split('T')[0];
+const toDateStr = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 const parseDate = (s: string) => new Date(s + 'T00:00:00');
 const todayStr = () => toDateStr(new Date());
 const weekLaterStr = () => { const d = new Date(); d.setDate(d.getDate() + 7); return toDateStr(d); };
@@ -128,7 +114,6 @@ function LoginScreen({ onLogin }: { onLogin: (user: any) => void }) {
     <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 60%,#16213e 100%)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif"}}>
       <style>{`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); @keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box;}`}</style>
       <div style={{width:'100%',maxWidth:400,padding:'0 24px'}}>
-        {/* 로고 */}
         <div style={{textAlign:'center',marginBottom:40}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:16,marginBottom:14}}>
             <div style={{width:52,height:52,borderRadius:14,background:'linear-gradient(135deg,#6366f1,#8b5cf6)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,boxShadow:'0 4px 18px rgba(99,102,241,0.45)'}}>📱</div>
@@ -138,7 +123,6 @@ function LoginScreen({ onLogin }: { onLogin: (user: any) => void }) {
           <h1 style={{fontSize:36,fontWeight:'bold',color:'#f1f5f9',margin:'0 0 10px',letterSpacing:'-1px'}}>간트차트</h1>
           <p style={{fontSize:16,color:'rgba(148,163,184,0.8)',margin:0,fontWeight:500}}>팀원만 접근 가능한 프로젝트 관리 도구</p>
         </div>
-        {/* 로그인 카드 */}
         <div style={{background:'rgba(255,255,255,0.05)',borderRadius:16,padding:32,border:'1px solid rgba(255,255,255,0.1)',backdropFilter:'blur(10px)'}}>
           <div style={{marginBottom:18}}>
             <label style={{display:'block',fontSize:13,color:'rgba(148,163,184,0.8)',marginBottom:7,fontWeight:500}}>이메일</label>
@@ -171,13 +155,12 @@ function LoginScreen({ onLogin }: { onLogin: (user: any) => void }) {
     </div>
   );
 }
-// ────────────────────────────────────────────────────
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [appId, setAppId] = useState<1|2>(() => {
     const saved = localStorage.getItem('gantt_last_app');
-    return (saved === '1' ? 1 : 2) as 1|2; // 2: 샌디앱, 1: 샌디버스
+    return (saved === '1' ? 1 : 2) as 1|2;
   });
   const [authLoading, setAuthLoading] = useState(true);
   const [isResetMode, setIsResetMode] = useState(false);
@@ -216,7 +199,6 @@ export default function App() {
   return <GanttChart user={user} appId={appId} onAppChange={(id) => { setAppId(id); localStorage.setItem('gantt_last_app', String(id)); }} onLogout={async () => { await supabase.auth.signOut(); setUser(null); }} />;
 }
 
-// ── 비밀번호 재설정 화면 ──────────
 function ResetPasswordScreen({ user, onDone }: { user: any; onDone: () => void }) {
   const [newPw, setNewPw]         = useState('');
   const [confirmPw, setConfirmPw] = useState('');
@@ -279,7 +261,6 @@ function ResetPasswordScreen({ user, onDone }: { user: any; onDone: () => void }
     </div>
   );
 }
-// ────────────────────────────────────────────────────
 
 function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 1|2; onAppChange: (id: 1|2) => void; onLogout: () => void }) {
   const APP_CONFIG = {
@@ -290,7 +271,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const [viewMode, setViewMode] = useState<ViewMode>('year');
 
-  // ── 레이아웃 (useMemo로 viewMode/화면폭 변경시만 재계산) ──
   const [screenW, setScreenW] = useState(window.innerWidth);
   useEffect(() => {
     const onResize = () => setScreenW(window.innerWidth);
@@ -305,8 +285,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const MONTH_COL    = layout.colW;
   const TIMELINE_W   = layout.totalTimelineW;
 
-  // 세로 구분선: 헤더 셀과 동일한 borderRight 방식 — 픽셀 퍼펙트 일치
-  // 모든 뷰에서 동일한 색상(#e8ecf8)으로 통일, 월 경계 강조 없음
   const gridColCount = viewMode === 'day' ? 365 : viewMode === 'week' ? 52 : 12;
   const GridLines = (
     <div style={{position:'absolute',inset:0,display:'flex',pointerEvents:'none',zIndex:0}}>
@@ -316,13 +294,9 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     </div>
   );
 
-  // 항상 1년 전체 기준
   const V_START      = new Date('2026-01-01T00:00:00');
   const V_END        = new Date('2026-12-31T00:00:00');
   const V_TOTAL_DAYS = 365;
-  // const V_MONTHS = MONTH_LABELS; // 미사용 제거
-
-  // const [cols, setCols] = useState(() => calcCols(window.innerWidth, 12)); // 미사용 제거
 
   const [projects, setProjects]               = useState<any[]>([]);
   const [searchQuery, setSearchQuery]         = useState('');
@@ -347,20 +321,19 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const [rowDrag, setRowDrag]                 = useState<any>(null);
   const [rowDragOver, setRowDragOver]         = useState<any>(null);
   const [groupOrder, setGroupOrder]           = useState<string[]>([]);
-  // ── Realtime 수신 알림 표시용 ──
   const [realtimeToast, setRealtimeToast]     = useState(false);
   const dragRef        = useRef<any>(null);
   const rowDragRef     = useRef<any>(null);
   const historyTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const headerRef      = useRef<HTMLDivElement>(null);
   const draggingRef    = useRef<any>(null);
-  const isSavingRef    = useRef<boolean>(false); // 내가 저장 중일 때 Realtime 토스트 무시
+  const isSavingRef    = useRef<boolean>(false);
   const toastTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const HISTORY_DEBOUNCE_MS = 5 * 60 * 1000;
 
-  // dragging state 변경 시 ref도 동기화
   useEffect(() => { draggingRef.current = dragging; }, [dragging]);
 
+  // ── [FIX] getPos: 날짜 → 픽셀 변환. 렌더 범위 클램프는 여기서만 담당 ──
   const getPos = useCallback((s: string, e: string) => {
     if (!s || !e) return null;
     const sd = parseDate(s), ed = parseDate(e);
@@ -369,28 +342,87 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     const endDays   = (ed.getTime() - V_START.getTime()) / 86400000;
     const left  = Math.max(0, startDays / V_TOTAL_DAYS * TIMELINE_W);
     const right = Math.min(TIMELINE_W, endDays / V_TOTAL_DAYS * TIMELINE_W);
+    if (right <= left) return null; // 완전히 범위 밖이면 null
     return { left, width: Math.max(6, right - left) };
   }, [TIMELINE_W]);
 
-  const assignLanes = (tasks: any[]) => {
-    const BAR_GAP_PX = 4;
+  // ── [FIX] getProjectMeta: 실제 날짜(startDate/endDate)도 함께 반환 ──
+  // pos는 getPos 내부에서 렌더 클램프 처리, 툴팁은 반환된 startDate/endDate 사용
+  const getProjectMeta = useCallback((proj: any) => {
+    const tasks = proj.tasks.filter((t:any) => t.startDate && t.endDate);
+    if (!tasks.length) {
+      if (proj.startDate && proj.endDate) return {
+        pos: getPos(proj.startDate, proj.endDate),
+        progress: proj.progress || 0,
+        startDate: proj.startDate,
+        endDate: proj.endDate,
+      };
+      return { pos: null, progress: 0, startDate: '', endDate: '' };
+    }
+    // 진행률: 각 task의 duration 가중 평균
+    let totalW = 0, totalP = 0;
+    tasks.forEach((t:any) => {
+      const dur = Math.max(1, (parseDate(t.endDate).getTime() - parseDate(t.startDate).getTime()) / 86400000);
+      totalW += dur;
+      totalP += (t.progress || 0) * dur;
+    });
+    // 실제 task 기간의 min/max (clamp 없음 — getPos에서 처리)
+    const starts = tasks.map((t:any) => +parseDate(t.startDate));
+    const ends   = tasks.map((t:any) => +parseDate(t.endDate));
+    const realStart = toDateStr(new Date(Math.min(...starts)));
+    const realEnd   = toDateStr(new Date(Math.max(...ends)));
+    return {
+      pos: getPos(realStart, realEnd),
+      progress: totalW > 0 ? Math.round(totalP / totalW) : 0,
+      startDate: realStart,
+      endDate: realEnd,
+    };
+  }, [getPos]);
+
+  // ── [FIX] assignLanes: null pos 항목을 lane 계산에서 완전히 제외 ──
+  const TASK_ROW_H = 20; // 태스크 바 높이 (접힌 프로젝트 / 펼친 태스크 공통)
+  const TASK_GAP   = 4;  // 레인 간 간격
+  const BAR_GAP_PX = 4;  // 레인 배정 시 좌우 여유
+
+  const assignLanes = useCallback((tasks: any[]) => {
     const laneEnds: number[] = [];
     const sorted = [...tasks]
-      .map((task, origIdx) => ({ task, origIdx }))
+      .map((task, origIdx) => ({ task, origIdx, pos: getPos(task.startDate, task.endDate) }))
+      .filter(item => item.pos !== null) // null pos 제외하고 레인 계산
       .sort((a, b) => (a.task.startDate || '').localeCompare(b.task.startDate || ''));
-    const result: { task: any; lane: number; pos: any }[] = new Array(tasks.length);
-    sorted.forEach(({ task, origIdx }) => {
-      const pos = getPos(task.startDate, task.endDate);
-      if (!pos) { result[origIdx] = { task, lane: 0, pos: null }; return; }
-      const laneIdx = laneEnds.findIndex(end => end + BAR_GAP_PX <= pos.left);
+
+    // origIdx → lane 매핑
+    const laneMap: Record<number, number> = {};
+    sorted.forEach(({ origIdx, pos }) => {
+      const laneIdx = laneEnds.findIndex(end => end + BAR_GAP_PX <= pos!.left);
       const lane = laneIdx === -1 ? laneEnds.length : laneIdx;
-      laneEnds[lane] = pos.left + pos.width;
-      result[origIdx] = { task, lane, pos };
+      laneEnds[lane] = pos!.left + pos!.width;
+      laneMap[origIdx] = lane;
     });
-    return result;
+
+    return tasks.map((task, origIdx) => ({
+      task,
+      lane: laneMap[origIdx] ?? 0,
+      pos: getPos(task.startDate, task.endDate),
+    }));
+  }, [getPos]);
+
+  // lane 수에서 유효한 pos 가진 항목만 카운트
+  const calcLaneCount = (laned: ReturnType<typeof assignLanes>) => {
+    const validLanes = laned.filter(l => l.pos !== null).map(l => l.lane);
+    return validLanes.length > 0 ? Math.max(...validLanes) + 1 : 1;
   };
 
-  // ── 최초 로드 + Realtime 구독 (appId 변경 시 재실행) ──────────────────────────
+  // 접힌 프로젝트 행의 minHeight 계산 (minHeight style과 실제 렌더 높이 통일)
+  const calcCollapsedMinH = useCallback((proj: any) => {
+    const validTasks = proj.tasks.filter((t:any) => t.startDate && t.endDate);
+    if (!validTasks.length) return 52;
+    const laned = assignLanes(validTasks);
+    const laneCount = calcLaneCount(laned);
+    const totalH = laneCount * (TASK_ROW_H + TASK_GAP) - TASK_GAP;
+    return Math.max(52, totalH + 12);
+  }, [assignLanes]);
+
   useEffect(() => {
     setProjects([]);
     load();
@@ -401,10 +433,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'gantt_projects', filter: `id=eq.${appId}` },
         (payload: any) => {
-          // 내가 저장 중이거나 드래그 중이면 무시
           if (isSavingRef.current || draggingRef.current) return;
           setProjects(payload.new.data || []);
-          // 토스트 알림 표시
           if (toastTimer.current) clearTimeout(toastTimer.current);
           setRealtimeToast(true);
           toastTimer.current = setTimeout(() => setRealtimeToast(false), 2500);
@@ -417,7 +447,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       if (toastTimer.current) clearTimeout(toastTimer.current);
     };
   }, [appId]);
-  // ──────────────────────────────────────────────────────
 
   const load = async () => {
     setLoading(true);
@@ -443,7 +472,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     } catch {}
     finally {
       setSaving(false);
-      setTimeout(() => { isSavingRef.current = false; }, 1000); // 1초 여유
+      setTimeout(() => { isSavingRef.current = false; }, 1000);
     }
 
     if (historyTimer.current) clearTimeout(historyTimer.current);
@@ -516,24 +545,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     save(projects.map(p => p.group === oldName ? {...p, group: newName.trim()} : p));
   };
 
-  const getProjectMeta = (proj: any) => {
-    const tasks = proj.tasks.filter((t:any) => t.startDate && t.endDate);
-    if (!tasks.length) {
-      if (proj.startDate && proj.endDate) return { pos:getPos(proj.startDate, proj.endDate), progress:proj.progress||0 };
-      return { pos:null, progress:0 };
-    }
-    const starts = tasks.map((t:any) => +parseDate(t.startDate));
-    const ends   = tasks.map((t:any) => +parseDate(t.endDate));
-    let totalW=0, totalP=0;
-    tasks.forEach((t:any) => {
-      const dur = Math.max(1, (parseDate(t.endDate).getTime()-parseDate(t.startDate).getTime())/86400000);
-      totalW+=dur; totalP+=(t.progress||0)*dur;
-    });
-    const visStart = toDateStr(new Date(Math.max(Math.min(...starts), +V_START)));
-    const visEnd   = toDateStr(new Date(Math.min(Math.max(...ends),   +V_END)));
-    return { pos:getPos(visStart, visEnd), progress:totalW>0?Math.round(totalP/totalW):0 };
-  };
-
   const handleMouseDown = (e: React.MouseEvent, pid: number, tid: any, type: string) => {
     e.preventDefault(); e.stopPropagation();
     if (tid==='__proj__') {
@@ -543,7 +554,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       const task = projects.find(p=>p.id===pid)?.tasks.find((t:any)=>t.id===tid); if (!task) return;
       dragRef.current = { pid, tid, type, startX:e.clientX, startDate:task.startDate, endDate:task.endDate };
     }
-    isSavingRef.current = true; // 드래그 시작 시 내 액션으로 표시
+    isSavingRef.current = true;
     setDragging({ pid, tid, type });
   };
 
@@ -565,7 +576,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
         ne=new Date(Math.min(+V_END,Math.max(+e0+deltaDays*86400000,+s0+86400000)));
       }
       const nsStr = toDateStr(ns), neStr = toDateStr(ne);
-      // 드래그 중에는 로컬 state만 업데이트 (DB 저장 없음)
       if (d.tid==='__proj__') {
         setProjects(prev => prev.map(p => p.id!==d.pid ? p : {...p, startDate:nsStr, endDate:neStr}));
       } else {
@@ -579,7 +589,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       setDragging(null);
       document.body.style.cursor='';
       document.body.style.userSelect='';
-      // 마우스 놓을 때 현재 state를 DB에 저장
       if (d) {
         setProjects(prev => {
           const latest = prev;
@@ -1007,14 +1016,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
         *{box-sizing:border-box; font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif;}
       `}</style>
 
-      {/* Realtime 수신 토스트 - 헤더에서 인라인으로 표시 */}
-
       {/* Header */}
       <div ref={headerRef} style={{background:'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 60%, #16213e 100%)',borderBottom:'1px solid rgba(255,255,255,0.08)',padding:'16px 24px',flexShrink:0,boxShadow:'0 2px 16px rgba(0,0,0,0.4)',position:'sticky',top:0,zIndex:30}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}}>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
             <div>
-              {/* 앱 전환 토글 */}
               <div style={{display:'flex',alignItems:'center',gap:0,background:'rgba(255,255,255,0.07)',borderRadius:10,padding:4,border:'1px solid rgba(255,255,255,0.1)'}}>
                 {([2,1] as const).map(id => (
                   <button key={id} onClick={()=>onAppChange(id)}
@@ -1149,9 +1155,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
         <div style={{minWidth:totalW}}>
           {/* Column Header */}
           {(viewMode === 'day' || viewMode === 'week') ? (
-            // ── 일/주 뷰: 2단 헤더 — 월 띠 14px + 날짜/주 행 28px = 42px (월 보기와 동일)
             <div style={{position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'2px solid #e2e8f0',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW}}>
-              {/* 1행: 월 띠 (20px) */}
+              {/* 1행: 월 띠 */}
               <div style={{display:'flex',height:20,borderBottom:'1px solid #e8ecf8'}}>
                 <div style={{width:LEFT_COL+ASSIGNEE_COL+SUB_COL,minWidth:LEFT_COL+ASSIGNEE_COL+SUB_COL,flexShrink:0,background:'#f9fafb',borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:10}} />
                 <div style={{display:'flex',width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,overflow:'hidden'}}>
@@ -1173,7 +1178,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   ))}
                 </div>
               </div>
-              {/* 2행: 날짜 or 주 번호 (22px) */}
+              {/* 2행: 날짜 or 주 번호 */}
               <div style={{display:'flex',height:22}}>
                 <div style={{width:LEFT_COL,minWidth:LEFT_COL,flexShrink:0,padding:'0 16px',fontWeight:600,fontSize:13,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',position:'sticky',left:0,zIndex:10,display:'flex',alignItems:'center'}}>프로젝트 / Task</div>
                 <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,fontWeight:600,fontSize:12,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',textAlign:'center',position:'sticky',left:LEFT_COL,zIndex:10,display:'flex',alignItems:'center',justifyContent:'center'}}>담당(정)</div>
@@ -1205,7 +1210,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               </div>
             </div>
           ) : (
-            // ── 연도/반년 뷰: 1단 헤더 (42px 고정 — 일/주 2단 헤더와 동일)
             <div style={{display:'flex',position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW,height:42}}>
               <div style={{width:LEFT_COL,minWidth:LEFT_COL,flexShrink:0,padding:'0 16px',fontWeight:600,fontSize:14,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',position:'sticky',left:0,zIndex:10,display:'flex',alignItems:'center'}}>프로젝트 / Task</div>
               <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,fontWeight:600,fontSize:13,color:'#374151',borderRight:'1px solid #e5e7eb',background:'#f9fafb',textAlign:'center',position:'sticky',left:LEFT_COL,zIndex:10,display:'flex',alignItems:'center',justifyContent:'center'}}>담당(정)</div>
@@ -1261,77 +1265,78 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   </div>
                   <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,borderRight:'1px solid #e5e7eb',position:'sticky',left:LEFT_COL,zIndex:8,background:'inherit'}} />
                   <div style={{width:SUB_COL,minWidth:SUB_COL,flexShrink:0,borderRight:'1px solid #e5e7eb',position:'sticky',left:LEFT_COL+ASSIGNEE_COL,zIndex:8,background:'inherit'}} />
+                  {/* ── 그룹 접힘 시: 프로젝트들의 기간바를 레인 패킹으로 표시 ── */}
                   <div style={{width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,position:'relative',minHeight:(()=>{
                     if (!collapsedGroups.has(group.name)) return 44;
-                    // lane 패킹으로 실제 필요 높이 계산
-                    const ROW_H=22,GAP=4,BAR_GAP_PX=6;
-                    const bars = group.items.map((proj:any)=>{
-                      const tasks=proj.tasks.filter((t:any)=>t.startDate&&t.endDate);
-                      const sd=tasks.length?[...tasks].sort((a:any,b:any)=>a.startDate.localeCompare(b.startDate))[0].startDate:(proj.startDate||'');
-                      const ed=tasks.length?[...tasks].sort((a:any,b:any)=>b.endDate.localeCompare(a.endDate))[0].endDate:(proj.endDate||'');
-                      return getPos(sd,ed);
-                    }).filter(Boolean);
-                    const sorted=[...bars].sort((a:any,b:any)=>a.left-b.left);
-                    const laneEnds:number[]=[];
-                    sorted.forEach((pos:any)=>{
-                      const li=laneEnds.findIndex(e=>e+BAR_GAP_PX<=pos.left);
-                      const lane=li===-1?laneEnds.length:li;
-                      laneEnds[lane]=pos.left+pos.width;
+                    const projsWithDate = group.items.map((proj:any) => {
+                      const tasks = proj.tasks.filter((t:any) => t.startDate && t.endDate);
+                      const sd = tasks.length ? tasks.map((t:any)=>t.startDate).sort()[0] : (proj.startDate||'');
+                      const ed = tasks.length ? tasks.map((t:any)=>t.endDate).sort().reverse()[0] : (proj.endDate||'');
+                      return { startDate: sd, endDate: ed };
                     });
-                    const laneCount=laneEnds.length||1;
-                    return Math.max(44,laneCount*(ROW_H+GAP)-GAP+12);
+                    const laneEnds: number[] = [];
+                    const sorted = [...projsWithDate]
+                      .map((p, i) => ({ p, i, pos: getPos(p.startDate, p.endDate) }))
+                      .filter(x => x.pos)
+                      .sort((a, b) => a.p.startDate.localeCompare(b.p.startDate));
+                    sorted.forEach(({ pos }) => {
+                      const li = laneEnds.findIndex(e => e + BAR_GAP_PX <= pos!.left);
+                      const lane = li === -1 ? laneEnds.length : li;
+                      laneEnds[lane] = pos!.left + pos!.width;
+                    });
+                    const laneCount = laneEnds.length || 1;
+                    const totalH = laneCount * (TASK_ROW_H + TASK_GAP) - TASK_GAP;
+                    return Math.max(44, totalH + 12);
                   })()}}>
                     {GridLines}
                     {todayLeft!==null && <div style={{position:'absolute',left:todayLeft,top:0,bottom:0,width:2,background:'#ef4444',opacity:0.3,zIndex:5}} />}
                     {collapsedGroups.has(group.name) && (()=>{
-                      // 프로젝트별 실제 기간 계산
+                      // 프로젝트별 실제 기간 계산 (getProjectMeta 동일 로직)
                       const projBars = group.items.map((proj:any) => {
                         const c = COLOR_MAP[proj.color] || COLOR_MAP.blue;
                         const catColor = CATEGORY_COLORS[proj.category];
                         const barBg = catColor ? catColor.border : c.bar;
-                        const barBgLight = catColor ? catColor.bg : c.barLight;
-                        const { startDate, endDate } = (() => {
-                          const tasks = proj.tasks.filter((t:any) => t.startDate && t.endDate);
-                          if (tasks.length === 0) return { startDate: proj.startDate||'', endDate: proj.endDate||'' };
-                          const starts = tasks.map((t:any) => t.startDate).sort();
-                          const ends = tasks.map((t:any) => t.endDate).sort();
-                          return { startDate: starts[0], endDate: ends[ends.length-1] };
-                        })();
+                        const tasks = proj.tasks.filter((t:any) => t.startDate && t.endDate);
+                        const startDate = tasks.length
+                          ? tasks.map((t:any) => t.startDate).sort()[0]
+                          : (proj.startDate || '');
+                        const endDate = tasks.length
+                          ? tasks.map((t:any) => t.endDate).sort().reverse()[0]
+                          : (proj.endDate || '');
                         const pos = getPos(startDate, endDate);
-                        return { proj, startDate, endDate, pos, barBg, barBgLight };
+                        return { proj, startDate, endDate, pos, barBg };
                       });
 
-                      // assignLanes와 동일한 로직으로 프로젝트 기간바 레인 배정
-                      const BAR_GAP_PX = 6;
-                      const ROW_H = 22;
-                      const GAP = 4;
+                      // 레인 배정 (null pos 제외)
                       const laneEnds: number[] = [];
                       const sorted = [...projBars]
                         .map((item, origIdx) => ({ item, origIdx }))
-                        .sort((a, b) => (a.item.startDate||'').localeCompare(b.item.startDate||''));
-                      const laned: { item: any; lane: number }[] = new Array(projBars.length);
+                        .filter(({ item }) => item.pos !== null)
+                        .sort((a, b) => a.item.startDate.localeCompare(b.item.startDate));
+                      const laneMap: Record<number, number> = {};
                       sorted.forEach(({ item, origIdx }) => {
-                        if (!item.pos) { laned[origIdx] = { item, lane: 0 }; return; }
                         const laneIdx = laneEnds.findIndex(end => end + BAR_GAP_PX <= item.pos!.left);
                         const lane = laneIdx === -1 ? laneEnds.length : laneIdx;
                         laneEnds[lane] = item.pos!.left + item.pos!.width;
-                        laned[origIdx] = { item, lane };
+                        laneMap[origIdx] = lane;
                       });
 
-                      const laneCount = laned.length > 0 ? Math.max(...laned.map(l=>l.lane)) + 1 : 1;
-                      const totalH = laneCount * (ROW_H + GAP) - GAP;
+                      const validLanes = Object.values(laneMap);
+                      const laneCount = validLanes.length > 0 ? Math.max(...validLanes) + 1 : 1;
+                      const totalH = laneCount * (TASK_ROW_H + TASK_GAP) - TASK_GAP;
                       const containerH = Math.max(44, totalH + 12);
                       const topBase = (containerH - totalH) / 2;
 
-                      return laned.map(({ item, lane }, _idx) => {
+                      return projBars.map((item, origIdx) => {
                         if (!item.pos) return null;
-                        const topOffset = topBase + lane * (ROW_H + GAP);
+                        const lane = laneMap[origIdx] ?? 0;
+                        const topOffset = topBase + lane * (TASK_ROW_H + TASK_GAP);
                         return (
                           <div key={item.proj.id}
                             onMouseEnter={e=>{setTooltip({startDate:item.startDate,endDate:item.endDate,name:item.proj.name});setTooltipPos({x:e.clientX,y:e.clientY});}}
                             onMouseMove={e=>setTooltipPos({x:e.clientX,y:e.clientY})}
                             onMouseLeave={()=>setTooltip(null)}
-                            style={{position:'absolute',left:item.pos.left,width:item.pos.width,height:ROW_H,top:topOffset,background:item.barBg,borderRadius:4,opacity:0.9,zIndex:6,cursor:'default',display:'flex',alignItems:'center',overflow:'hidden',minWidth:4,border:`1px solid ${item.barBg}`,boxShadow:`0 1px 4px ${item.barBg}55`}}>
+                            style={{position:'absolute',left:item.pos.left,width:item.pos.width,height:TASK_ROW_H,top:topOffset,background:item.barBg,borderRadius:4,opacity:0.9,zIndex:6,cursor:'default',display:'flex',alignItems:'center',overflow:'hidden',minWidth:4,border:`1px solid ${item.barBg}`,boxShadow:`0 1px 4px ${item.barBg}55`}}>
                             {item.pos.width > 40 && (
                               <span style={{fontSize:11,color:'white',fontWeight:700,padding:'0 8px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',lineHeight:1,textShadow:'0 1px 3px rgba(0,0,0,0.5)',maxWidth:item.pos.width-4}}>
                                 {item.proj.name}
@@ -1347,8 +1352,12 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 {/* 그룹 내 프로젝트 */}
                 {!collapsedGroups.has(group.name) && group.items.map(proj=>{
                   const c=COLOR_MAP[proj.color]||COLOR_MAP.blue;
-                  const {pos:projPos,progress:projProg}=getProjectMeta(proj);
+                  const {pos:projPos, progress:projProg, startDate:projStart, endDate:projEnd}=getProjectMeta(proj);
                   const catColor=CATEGORY_COLORS[proj.category];
+
+                  // 접힌 프로젝트 행 높이 (minHeight style과 실제 렌더 통일)
+                  const collapsedMinH = calcCollapsedMinH(proj);
+
                   return (
                     <React.Fragment key={proj.id}>
                       {/* Project row */}
@@ -1383,22 +1392,20 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                         <div style={{width:SUB_COL,minWidth:SUB_COL,flexShrink:0,display:'flex',alignItems:'flex-start',justifyContent:'center',padding:'12px 4px',borderRight:'1px solid #e5e7eb',fontSize:12,color:'#6b7280',textAlign:'center',wordBreak:'break-all',position:'sticky',left:LEFT_COL+ASSIGNEE_COL,zIndex:8,background:'inherit'}}>
                           {proj.subOwner||<span style={{color:'#d1d5db'}}>-</span>}
                         </div>
+                        {/* ── 프로젝트 타임라인 셀 ── */}
                         <div style={{width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,position:'relative',display:'flex',alignItems:'center',
-                          minHeight: (() => {
-                            if (proj.expanded || proj.tasks.length === 0) return 52;
-                            const lanes = assignLanes(proj.tasks.filter((t:any)=>t.startDate&&t.endDate));
-                            const laneCount = Math.max(1, lanes.length > 0 ? Math.max(...lanes.map((l:any)=>l.lane)) + 1 : 1);
-                            return Math.max(52, laneCount * 26 + 12);
-                          })()
+                          minHeight: proj.expanded || proj.tasks.length === 0 ? 52 : collapsedMinH
                         }}>
                           {GridLines}
                           {todayLeft!==null && <div style={{position:'absolute',left:todayLeft,top:0,bottom:0,width:2,background:'#ef4444',opacity:0.7,zIndex:5}} />}
+
+                          {/* Task 없을 때: 프로젝트 자체 기간바 (드래그 가능) */}
                           {projPos && proj.tasks.length===0 && (()=>{
                             const isProjDrag=dragging?.pid===proj.id && dragging?.tid==='__proj__';
                             return (
                               <div style={{position:'absolute',left:projPos.left,width:projPos.width,height:22,top:'50%',transform:'translateY(-50%)',background:catColor?catColor.bg:c.barLight,borderRadius:4,overflow:'visible',border:`1px solid ${catColor?catColor.border:c.bar}55`,zIndex:6,cursor:'grab'}}
                                 onMouseDown={e=>handleMouseDown(e,proj.id,'__proj__','move')}
-                                onMouseEnter={e=>{setTooltip({name:proj.name,startDate:proj.startDate,endDate:proj.endDate});setTooltipPos({x:e.clientX,y:e.clientY});}}
+                                onMouseEnter={e=>{setTooltip({name:proj.name,startDate:projStart,endDate:projEnd});setTooltipPos({x:e.clientX,y:e.clientY});}}
                                 onMouseMove={e=>setTooltipPos({x:e.clientX,y:e.clientY})}
                                 onMouseLeave={()=>{if(!isProjDrag)setTooltip(null);}}>
                                 <div style={{position:'absolute',left:0,top:0,bottom:0,width:8,cursor:'ew-resize',zIndex:8,borderRadius:'4px 0 0 4px'}} onMouseDown={e=>handleMouseDown(e,proj.id,'__proj__','start')} />
@@ -1411,11 +1418,13 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                               </div>
                             );
                           })()}
+
+                          {/* Task 있고 펼침: 프로젝트 전체 범위를 얇은 배경바로 표시 (읽기 전용) */}
                           {proj.tasks.length>0 && proj.expanded && projPos && (()=>{
                             const isProjDrag=dragging?.pid===proj.id && dragging?.tid==='__proj__';
                             return (
                               <div style={{position:'absolute',left:projPos.left,width:projPos.width,height:22,top:'50%',transform:'translateY(-50%)',background:catColor?catColor.bg:c.barLight,borderRadius:4,overflow:'hidden',border:`1px solid ${catColor?catColor.border:c.bar}55`,zIndex:6,cursor:'default'}}
-                                onMouseEnter={e=>{setTooltip({name:proj.name,startDate:proj.startDate,endDate:proj.endDate});setTooltipPos({x:e.clientX,y:e.clientY});}}
+                                onMouseEnter={e=>{setTooltip({name:proj.name,startDate:projStart,endDate:projEnd});setTooltipPos({x:e.clientX,y:e.clientY});}}
                                 onMouseMove={e=>setTooltipPos({x:e.clientX,y:e.clientY})}
                                 onMouseLeave={()=>{if(!isProjDrag)setTooltip(null);}}>
                                 <div style={{width:`${projProg}%`,height:'100%',background:catColor?catColor.border:c.bar,borderRadius:4}} />
@@ -1426,21 +1435,23 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                               </div>
                             );
                           })()}
+
+                          {/* Task 있고 접힘: 태스크바를 레인 패킹으로 표시 */}
                           {proj.tasks.length>0 && !proj.expanded && (()=>{
-                            const validTasks = proj.tasks.filter((t:any)=>t.startDate&&t.endDate);
+                            const validTasks = proj.tasks.filter((t:any) => t.startDate && t.endDate);
                             const laned = assignLanes(validTasks);
-                            const laneCount = laned.length > 0 ? Math.max(...laned.map((l:any)=>l.lane)) + 1 : 1;
-                            const ROW_H = 20;
-                            const GAP = 4;
-                            const totalH = laneCount * (ROW_H + GAP) - GAP;
-                            const containerH = Math.max(52, totalH + 12);
-                            return laned.map(({task, lane, pos: tpos}:any) => {
+                            const laneCount = calcLaneCount(laned);
+                            const totalH = laneCount * (TASK_ROW_H + TASK_GAP) - TASK_GAP;
+                            const containerH = collapsedMinH; // style minHeight와 동일한 값 사용
+                            const topBase = (containerH - totalH) / 2;
+
+                            return laned.map(({task, lane, pos: tpos}) => {
                               if (!tpos) return null;
                               const taskCatColor = CATEGORY_COLORS[task.category];
                               const tc = COLOR_MAP[proj.color] || COLOR_MAP.blue;
                               const barBg = taskCatColor ? taskCatColor.border : tc.bar;
                               const barBgLight = taskCatColor ? taskCatColor.bg : tc.barLight;
-                              const topOffset = (containerH - totalH) / 2 + lane * (ROW_H + GAP);
+                              const topOffset = topBase + lane * (TASK_ROW_H + TASK_GAP);
                               const isDrag = dragging?.pid===proj.id && dragging?.tid===task.id;
                               return (
                                 <div key={task.id}
@@ -1448,8 +1459,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                                   onMouseMove={e=>setTooltipPos({x:e.clientX,y:e.clientY})}
                                   onMouseLeave={()=>{if(!isDrag)setTooltip(null);}}
                                   onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'move')}
-                                  style={{position:'absolute',left:tpos.left,width:tpos.width,height:ROW_H,top:topOffset,background:barBgLight,borderRadius:3,zIndex:6,cursor:'grab',display:'flex',alignItems:'center',overflow:'visible',minWidth:4,border:`1px solid ${barBg}55`,boxShadow:`0 1px 3px ${barBg}33`}}>
-                                  {/* 왼쪽 리사이즈 핸들 */}
+                                  style={{position:'absolute',left:tpos.left,width:tpos.width,height:TASK_ROW_H,top:topOffset,background:barBgLight,borderRadius:3,zIndex:6,cursor:'grab',display:'flex',alignItems:'center',overflow:'visible',minWidth:4,border:`1px solid ${barBg}55`,boxShadow:`0 1px 3px ${barBg}33`}}>
                                   <div onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'start')}
                                     style={{position:'absolute',left:0,top:0,bottom:0,width:6,cursor:'ew-resize',zIndex:8,borderRadius:'3px 0 0 3px'}} />
                                   <div style={{width:`${task.progress||0}%`,height:'100%',background:barBg,borderRadius:3,opacity:0.7,pointerEvents:'none'}} />
@@ -1458,7 +1468,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                                       {task.name}
                                     </span>
                                   )}
-                                  {/* 오른쪽 리사이즈 핸들 */}
                                   <div onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'end')}
                                     style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'ew-resize',zIndex:8,borderRadius:'0 3px 3px 0'}} />
                                 </div>
@@ -1468,7 +1477,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                         </div>
                       </div>
 
-                      {/* Task rows */}
+                      {/* Task rows (펼침) */}
                       {proj.expanded && proj.tasks.map((task:any)=>{
                         const pos=getPos(task.startDate,task.endDate);
                         const isDrag=dragging?.pid===proj.id && dragging?.tid===task.id;
