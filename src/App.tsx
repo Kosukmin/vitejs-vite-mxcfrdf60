@@ -12,46 +12,29 @@ const WEEK_COL_W = 52;
 const DAY_COL_W  = 28;
 
 // ── 2026년 대한민국 법정공휴일 + 대체공휴일 ────────────────────
-// 설날: 음력 1/1 = 양력 2/17(화)  연휴: 2/16(월)~2/18(수)
-// 3·1절: 3/1(일) → 대체 3/2(월)
-// 부처님오신날: 음력 4/8 = 5/24(일) → 대체 5/25(월)
-// 광복절: 8/15(토) → 대체 8/17(월)
-// 추석: 음력 8/15 = 10/1(목)  연휴: 9/30(수)~10/2(금)
-// 개천절: 10/3(토) → 대체 10/5(월)
 const KR_HOLIDAYS_2026: Record<string, string> = {
   '2026-01-01': '신정',
-  // 설날 연휴
   '2026-02-16': '설날 전날',
   '2026-02-17': '설날',
   '2026-02-18': '설날 다음날',
-  // 3·1절 + 대체공휴일
   '2026-03-01': '3·1절',
   '2026-03-02': '3·1절 대체공휴일',
-  // 어린이날
   '2026-05-05': '어린이날',
-  // 부처님오신날 + 대체공휴일
   '2026-05-24': '부처님오신날',
   '2026-05-25': '부처님오신날 대체공휴일',
-  // 현충일
   '2026-06-06': '현충일',
-  // 광복절 + 대체공휴일
   '2026-08-15': '광복절',
   '2026-08-17': '광복절 대체공휴일',
-  // 추석 연휴
   '2026-09-30': '추석 전날',
   '2026-10-01': '추석',
   '2026-10-02': '추석 다음날',
-  // 개천절 + 대체공휴일
   '2026-10-03': '개천절',
   '2026-10-05': '개천절 대체공휴일',
-  // 한글날
   '2026-10-09': '한글날',
-  // 크리스마스
   '2026-12-25': '크리스마스',
 };
 
 // ── 기기/화면 분류 ────────────────────────────────────────────
-// 터치 디바이스 여부 (실기기 기준)
 const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 type DeviceType = 'phone' | 'tablet' | 'fold' | 'fold-open' | 'desktop';
@@ -60,36 +43,25 @@ const classifyDevice = (w: number, h: number): DeviceType => {
   if (!isTouchDevice()) return 'desktop';
   const short = Math.min(w, h);
   const long  = Math.max(w, h);
-  if (short < 300 && long > 700) return 'fold';                   // 폴드 접힘
-  if (short >= 600 && long / short < 1.35) return 'fold-open';    // 폴드 펼침 (비율 1.26)
-  if (short >= 600) return 'tablet';                              // 태블릿
+  if (short < 300 && long > 700) return 'fold';
+  if (short >= 600 && long / short < 1.35) return 'fold-open';
+  if (short >= 600) return 'tablet';
   return 'phone';
 };
 
-// 간트 뷰 표시 여부
-// ┌──────────────────┬──────┬──────┐
-// │ 기기             │ 세로 │ 가로 │
-// ├──────────────────┼──────┼──────┤
-// │ 데스크탑         │ 간트 │ 간트 │
-// │ 태블릿           │ 카드 │ 간트 │
-// │ 일반폰           │ 카드 │ 카드 │
-// │ 폴드접힘         │ 카드 │ 카드 │
-// │ 폴드펼침(태블릿) │ 카드 │ 간트 │
-// └──────────────────┴──────┴──────┘
 const shouldShowGantt = (w: number, h: number): boolean => {
   const device = classifyDevice(w, h);
   if (device === 'desktop')   return true;
-  if (device === 'tablet')    return w > h;   // 태블릿: 가로만 간트
-  if (device === 'fold-open') return w > h;  // 폴드 펼침: 가로만 간트, 세로는 카드
-  return false;                               // 폰/폴드접힘: 항상 카드
+  if (device === 'tablet')    return w > h;
+  if (device === 'fold-open') return w > h;
+  return false;
 };
 
 const calcLayout = (mode: ViewMode, screenW: number, deviceType: string = 'desktop') => {
-  const isCompact = deviceType === 'tablet' || deviceType === 'fold-open';
-  // compact: 좌측 22px 아이콘 컬럼만, 담당 컬럼 없음
-  const leftCol     = isCompact ? 22 : Math.max(260, Math.floor(screenW * 0.30));
-  const assigneeCol = isCompact ? 0  : Math.max(56, Math.floor(screenW * 0.06));
-  const subCol      = isCompact ? 0  : Math.max(56, Math.floor(screenW * 0.06));
+  const isCompact = deviceType === 'tablet' || deviceType === 'fold-open' || (deviceType === 'desktop' && screenW < 1400);
+  const leftCol     = isCompact ? 22 : Math.max(220, Math.floor(screenW * 0.25));
+  const assigneeCol = isCompact ? 0  : Math.max(52, Math.floor(screenW * 0.05));
+  const subCol      = isCompact ? 0  : Math.max(52, Math.floor(screenW * 0.05));
   const availW      = screenW - leftCol - assigneeCol - subCol;
 
   let colW: number, totalTimelineW: number;
@@ -341,7 +313,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const currentApp = APP_CONFIG[appId];
 
   const [viewMode, setViewMode] = useState<ViewMode>('year');
-  // iOS Safari: innerWidth/Height가 주소창에 따라 불안정 → screen.width/height 기반으로 보정
   const getW = () => window.innerWidth  || window.screen.width;
   const getH = () => window.innerHeight || window.screen.height;
   const [screenW, setScreenW] = useState(getW);
@@ -349,21 +320,18 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   useEffect(() => {
     const updateSize = () => {
-      // visualViewport가 있으면 더 정확 (iOS 13+)
       const vv = (window as any).visualViewport;
       const w = vv ? Math.round(vv.width)  : window.innerWidth  || window.screen.width;
       const h = vv ? Math.round(vv.height) : window.innerHeight || window.screen.height;
       setScreenW(w);
       setScreenH(h);
     };
-    // orientationchange: iOS Safari는 500ms까지 늦게 확정됨
     const onOrient = () => {
       updateSize();
       setTimeout(updateSize, 100);
       setTimeout(updateSize, 300);
       setTimeout(updateSize, 600);
     };
-    // visualViewport resize도 잡기 (iOS Safari 정확도↑)
     const vv = (window as any).visualViewport;
     if (vv) vv.addEventListener('resize', updateSize);
     window.addEventListener('resize', updateSize);
@@ -376,13 +344,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     };
   }, []);
 
-  // ── 뷰 모드 결정 ──────────────────────────────────────────────
   const showGantt = shouldShowGantt(screenW, screenH);
   const deviceType = classifyDevice(screenW, screenH);
   const isPortrait = screenH > screenW;
-  // 폴드펼침 + 태블릿 가로 둘 다 슬림 헤더/레이아웃
-  const isCompactUI = (deviceType === 'fold-open' && !isPortrait) || (deviceType === 'tablet' && !isPortrait);
-
+  const isCompactUI = (deviceType === 'fold-open' && !isPortrait) || (deviceType === 'tablet' && !isPortrait) || (deviceType === 'desktop' && screenW < 1400);
 
   const layout       = React.useMemo(() => calcLayout(viewMode, screenW, deviceType), [viewMode, screenW, deviceType]);
   const LEFT_COL     = layout.leftCol;
@@ -391,7 +356,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const MONTH_COL    = layout.colW;
   const TIMELINE_W   = layout.totalTimelineW;
 
-  // GridLines: CSS repeating-linear-gradient 단일 div — useMemo로 MONTH_COL 변경 시만 재계산
   const GridLines = React.useMemo(() => (
     <div style={{
       position:'absolute',inset:0,pointerEvents:'none',zIndex:0,
@@ -400,8 +364,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     }} />
   ), [MONTH_COL]);
 
-  // ── 일 뷰: 공휴일/주말 배경 오버레이 ─────────────────────────
-  // DayOverlayLines: 공휴일/주말/토요일 열만 absolute div로 렌더 — 전체 365개 대신 특수일만
   const DayOverlayLines = viewMode === 'day' ? (
     <div style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:1,overflow:'hidden'}}>
       {DAY_HEADERS.map((h, i) => {
@@ -468,7 +430,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   useEffect(() => { draggingRef.current = dragging; }, [dragging]);
 
-  // 가로모드 전환 시 headerCollapsed 리셋
   useEffect(() => { if (isPortrait) setHeaderCollapsed(false); }, [isPortrait]);
 
   useEffect(() => {
@@ -615,6 +576,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const addProject = () => save([...projects, { id:Date.now(), name:'새 프로젝트', owner:'', subOwner:'', description:'', color:'blue', expanded:true, tasks:[], category:'기획', group: activeGroup || '미분류', startDate:todayStr(), endDate:weekLaterStr(), progress:0 }]);
   const addTask = (pid: number) => save(projects.map(p => p.id !== pid ? p : { ...p, tasks:[...p.tasks, { id:Date.now(), name:'새 Task', assignee:'', subAssignee:'', startDate:todayStr(), endDate:weekLaterStr(), progress:0, dependencies:[], description:'', category: p.category||'' }] }));
   const toggleProject  = (pid: number) => setProjects(projects.map(p => p.id===pid ? {...p, expanded:!p.expanded} : p));
+  const collapseAll    = () => setProjects(projects.map(p => ({...p, expanded:false})));
+  const expandAll      = () => setProjects(projects.map(p => ({...p, expanded:true})));
   const updateTask     = (pid: number, tid: number, upd: any) => save(projects.map(p => p.id!==pid ? p : {...p, tasks:p.tasks.map((t:any)=>t.id!==tid?t:{...t,...upd})}));
   const deleteTask     = (pid: number, tid: number) => save(projects.map(p => p.id!==pid ? p : {...p, tasks:p.tasks.filter((t:any)=>t.id!==tid)}));
   const deleteProject  = (pid: number) => save(projects.filter(p => p.id!==pid));
@@ -742,6 +705,18 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const todayLeft = today>=V_START && today<=V_END ? Math.round((today.getTime()-V_START.getTime())/86400000/V_TOTAL_DAYS*TIMELINE_W) : null;
   const modalW = Math.min(500, Math.max(320, window.innerWidth * 0.9));
   const inp = (extra={}) => ({width:'100%',border:'1px solid #d1d5db',borderRadius:8,padding:'8px 12px',fontSize:14,boxSizing:'border-box' as const,...extra});
+
+  // ── 설명 툴팁용 공통 스타일 ───────────────────────────────────
+  const descLineStyle: React.CSSProperties = {
+    fontSize: 11,
+    color: '#6b7280',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    marginTop: 2,
+    lineHeight: '16px',
+    cursor: 'default',
+  };
 
   const ProjectEditModal = ({ proj, onClose }: any) => {
     const [fd, setFd] = useState({...proj});
@@ -944,7 +919,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       return (t.getTime() - V_START.getTime()) / (V_END.getTime() - V_START.getTime()) * 100;
     })();
 
-    // 태블릿 세로는 좀 더 넓은 레이아웃
     const isTabletPortrait = deviceType === 'tablet' && isPortrait;
 
     return (
@@ -986,7 +960,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   </button>
                 ))}
               </div>
-
             </div>
             <div style={{display:'flex',alignItems:'center',gap:6}}>
               {saving && <div style={{display:'flex',alignItems:'center',gap:4,fontSize:10,color:'#4ade80'}}><div style={{width:8,height:8,border:'2px solid #4ade80',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>저장중</div>}
@@ -995,19 +968,22 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             </div>
           </div>
 
-          {/* 카테고리 필터 */}
           <div className="hdr-collapsible" style={{maxHeight:(!isPortrait&&headerCollapsed)?'0px':'50px',opacity:(!isPortrait&&headerCollapsed)?0:1}}>
-            <div className="ms" style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:2}}>
+            <div className="ms" style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:2,alignItems:'center'}}>
               <button onClick={()=>setActiveCategories([])}
                 style={{padding:'4px 12px',borderRadius:20,fontSize:11,cursor:'pointer',fontWeight:activeCategories.length===0?600:400,border:activeCategories.length===0?'1.5px solid #818cf8':'1.5px solid rgba(255,255,255,0.2)',background:activeCategories.length===0?'rgba(99,102,241,0.35)':'rgba(255,255,255,0.07)',color:activeCategories.length===0?'#fff':'#e2e8f0',whiteSpace:'nowrap',flexShrink:0,fontFamily:'inherit'}}>
                 전체 {projects.length}
               </button>
               {CATEGORIES.map(cat=>{ const isActive=activeCategories.includes(cat); const cc=CATEGORY_COLORS[cat]; return (
                 <button key={cat} onClick={()=>setActiveCategories(prev=>prev.includes(cat)?prev.filter(c=>c!==cat):[...prev,cat])}
-                  style={{padding:'4px 12px',borderRadius:20,fontSize:11,cursor:'pointer',fontWeight:isActive?600:400,border:isActive?`1.5px solid ${cc.border}`:'1.5px solid rgba(255,255,255,0.2)',background:isActive?`${cc.bg}22`:'rgba(255,255,255,0.07)',color:isActive?cc.border:'#e2e8f0',whiteSpace:'nowrap',flexShrink:0,fontFamily:'inherit'}}>
+                  style={{padding:'4px 12px',borderRadius:20,fontSize:11,cursor:'pointer',fontWeight:isActive?600:400,border:isActive?`1.5px solid ${cc.border}`:'1.5px solid rgba(255,255,255,0.2)',background:isActive?`${cc.bg}22`:'rgba(255,255,255,0.07)',color:isActive?cc.border:'#e2e8f0',whiteSpace:'nowrap',flexShrink:0,fontFamily:'inherit',display:'flex',alignItems:'center',gap:4}}>
+                  <span style={{width:7,height:7,borderRadius:'50%',background:cc.border,flexShrink:0,display:'inline-block'}}/>
                   {cat}
                 </button>
               ); })}
+              <div style={{width:1,height:14,background:'rgba(255,255,255,0.2)',flexShrink:0}}/>
+              <button onClick={expandAll} style={{padding:'4px 9px',borderRadius:14,fontSize:10,cursor:'pointer',border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.07)',color:'#e2e8f0',whiteSpace:'nowrap',flexShrink:0,fontFamily:'inherit'}}>▼ 펴기</button>
+              <button onClick={collapseAll} style={{padding:'4px 9px',borderRadius:14,fontSize:10,cursor:'pointer',border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.07)',color:'#e2e8f0',whiteSpace:'nowrap',flexShrink:0,fontFamily:'inherit'}}>▶ 접기</button>
             </div>
           </div>
         </div>
@@ -1144,7 +1120,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   // 데스크탑 / 태블릿 가로 → 간트차트 뷰
   // ────────────────────────────────────────────────────────────
 
-  // 일 뷰 헤더용 — 공휴일/주말 스타일
   const getDayHeaderStyle = (h: typeof DAY_HEADERS[0]) => {
     if (h.isHoliday || h.isSunday) return { color:'#ef4444', fontWeight: 500, bg:'#fff5f5' };
     if (h.isSaturday) return { color:'#2563eb', fontWeight: 400, bg:'#eff6ff' };
@@ -1166,9 +1141,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       {/* Header */}
       <div ref={headerRef} style={{background:'linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 60%,#16213e 100%)',borderBottom:'1px solid rgba(255,255,255,0.08)',padding:isCompactUI?'6px 16px':'16px 24px',flexShrink:0,boxShadow:'0 2px 16px rgba(0,0,0,0.4)',position:'sticky',top:0,zIndex:30}}>
         {isCompactUI ? (
-          /* ── 폴드펼침/태블릿가로 슬림 헤더 2줄 ── */
           <>
-            {/* 1줄: 앱전환 + 저장중 + 뷰모드 + 추가버튼 + 로그아웃 */}
             <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:5}}>
               <div style={{display:'flex',background:'rgba(255,255,255,0.07)',borderRadius:8,padding:3,border:'1px solid rgba(255,255,255,0.1)',gap:1}}>
                 {([2,1] as const).map(id=>(
@@ -1196,11 +1169,13 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               <button onClick={addProject} style={{padding:'4px 12px',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'white',border:'none',borderRadius:7,cursor:'pointer',fontSize:12,fontWeight:600}}>+ 추가</button>
               <button onClick={onLogout} style={{padding:'4px 10px',background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.25)',borderRadius:7,cursor:'pointer',fontSize:11,color:'#fca5a5'}}>로그아웃</button>
             </div>
-            {/* 2줄: 카테고리 필터 */}
             <div style={{display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
               <button onClick={()=>setActiveCategories([])} style={{padding:'3px 10px',borderRadius:14,fontSize:11,cursor:'pointer',fontWeight:activeCategories.length===0?600:400,border:activeCategories.length===0?'1.5px solid #818cf8':'1.5px solid rgba(255,255,255,0.3)',background:activeCategories.length===0?'rgba(99,102,241,0.35)':'rgba(255,255,255,0.08)',color:activeCategories.length===0?'#fff':'#e2e8f0'}}>전체 {projects.length}</button>
               {CATEGORIES.map(cat=>{const isActive=activeCategories.includes(cat);const cc=CATEGORY_COLORS[cat];return(
-                <button key={cat} onClick={()=>setActiveCategories(prev=>prev.includes(cat)?prev.filter(c=>c!==cat):[...prev,cat])} style={{padding:'3px 10px',borderRadius:14,fontSize:11,cursor:'pointer',fontWeight:isActive?600:400,border:isActive?`1.5px solid ${cc.border}`:'1.5px solid rgba(255,255,255,0.3)',background:isActive?`${cc.bg}22`:'rgba(255,255,255,0.08)',color:isActive?cc.border:'#e2e8f0'}}>{cat}</button>
+                <button key={cat} onClick={()=>setActiveCategories(prev=>prev.includes(cat)?prev.filter(c=>c!==cat):[...prev,cat])} style={{padding:'3px 10px',borderRadius:14,fontSize:11,cursor:'pointer',fontWeight:isActive?600:400,border:isActive?`1.5px solid ${cc.border}`:'1.5px solid rgba(255,255,255,0.3)',background:isActive?`${cc.bg}22`:'rgba(255,255,255,0.08)',color:isActive?cc.border:'#e2e8f0',display:'flex',alignItems:'center',gap:4}}>
+                  <span style={{width:7,height:7,borderRadius:'50%',background:cc.border,flexShrink:0,display:'inline-block'}}/>
+                  {cat}
+                </button>
               );})}
               {allGroups.length>0 && <>
                 <div style={{width:1,height:14,background:'rgba(255,255,255,0.25)'}}/>
@@ -1209,10 +1184,12 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   <button key={g} onClick={()=>setActiveGroup(prev=>prev===g?'':g)} style={{padding:'3px 10px',borderRadius:14,fontSize:11,cursor:'pointer',fontWeight:activeGroup===g?600:400,border:activeGroup===g?'1.5px solid #818cf8':'1.5px solid rgba(255,255,255,0.3)',background:activeGroup===g?'rgba(99,102,241,0.35)':'rgba(255,255,255,0.08)',color:activeGroup===g?'#fff':'#e2e8f0'}}>{g}</button>
                 ))}
               </>}
+              <div style={{width:1,height:14,background:'rgba(255,255,255,0.25)'}}/>
+              <button onClick={expandAll} style={{padding:'3px 8px',borderRadius:10,fontSize:10,cursor:'pointer',border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.08)',color:'#e2e8f0'}}>▼ 펴기</button>
+              <button onClick={collapseAll} style={{padding:'3px 8px',borderRadius:10,fontSize:10,cursor:'pointer',border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.08)',color:'#e2e8f0'}}>▶ 접기</button>
             </div>
           </>
         ) : (
-          /* ── PC / 태블릿 풀 헤더 ── */
           <>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}}>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
@@ -1284,7 +1261,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           <button onClick={()=>setActiveCategories([])} style={{padding:'5px 14px',borderRadius:20,fontSize:12,cursor:'pointer',fontWeight:activeCategories.length===0?600:400,border:activeCategories.length===0?'1.5px solid #818cf8':'1.5px solid rgba(255,255,255,0.4)',background:activeCategories.length===0?'rgba(99,102,241,0.35)':'rgba(255,255,255,0.12)',color:activeCategories.length===0?'#fff':'#e2e8f0'}}>전체 <span style={{marginLeft:2,fontSize:11,opacity:0.9}}>{projects.length}</span></button>
           {CATEGORIES.map(cat=>{ const isActive=activeCategories.includes(cat); const cc=CATEGORY_COLORS[cat]; return (
             <button key={cat} onClick={()=>setActiveCategories(prev=>prev.includes(cat)?prev.filter(c=>c!==cat):[...prev,cat])}
-              style={{padding:'5px 14px',borderRadius:20,fontSize:12,cursor:'pointer',fontWeight:isActive?600:400,border:isActive?`1.5px solid ${cc.border}`:'1.5px solid rgba(255,255,255,0.4)',background:isActive?`${cc.bg}33`:'rgba(255,255,255,0.12)',color:isActive?cc.border:'#e2e8f0'}}>
+              style={{padding:'5px 14px',borderRadius:20,fontSize:12,cursor:'pointer',fontWeight:isActive?600:400,border:isActive?`1.5px solid ${cc.border}`:'1.5px solid rgba(255,255,255,0.4)',background:isActive?`${cc.bg}33`:'rgba(255,255,255,0.12)',color:isActive?cc.border:'#e2e8f0',display:'flex',alignItems:'center',gap:5}}>
+              <span style={{width:8,height:8,borderRadius:'50%',background:cc.border,flexShrink:0,display:'inline-block'}} />
               {cat} <span style={{marginLeft:2,fontSize:11,opacity:0.9}}>{projects.filter(p=>p.category===cat).length}</span>
             </button>
           ); })}
@@ -1303,10 +1281,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
         {/* Legend */}
         {<div style={{display:'flex',alignItems:'center',gap:16,marginTop:10,flexWrap:'wrap',paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.15)'}}>
-          <div style={{display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
-            {(['영업','기획','운영','개발','보안'] as string[]).map(cat=>{ const cc=({'영업':{bg:'#fef3c7',text:'#92400e',border:'#f59e0b'},'기획':{bg:'#fce7f3',text:'#9d174d',border:'#ec4899'},'운영':{bg:'#e0f2fe',text:'#075985',border:'#0ea5e9'},'개발':{bg:'#d1fae5',text:'#065f46',border:'#10b981'},'보안':{bg:'#fee2e2',text:'#991b1b',border:'#ef4444'}} as any)[cat]; return <span key={cat} style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:cc.bg,color:cc.text,border:`1px solid ${cc.border}`,fontWeight:600,whiteSpace:'nowrap'}}>{cat}</span>; })}
-          </div>
-          <div style={{width:1,height:14,background:'rgba(255,255,255,0.3)',flexShrink:0}} />
           <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
             <div style={{display:'flex',alignItems:'center',gap:5}}><div style={{width:10,height:10,borderRadius:'50%',background:'#f87171'}} /><span style={{fontSize:12,color:'#e2e8f0'}}>오늘</span></div>
             <div style={{display:'flex',alignItems:'center',gap:5}}><div style={{width:28,height:9,borderRadius:3,background:'linear-gradient(to right,#3b82f6 50%,#bfdbfe 50%)'}} /><span style={{fontSize:12,color:'#e2e8f0'}}>진행률</span></div>
@@ -1315,6 +1289,12 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               <div style={{display:'flex',alignItems:'center',gap:5}}><div style={{width:12,height:12,background:'rgba(59,130,246,0.1)',borderRadius:2,border:'1px solid rgba(59,130,246,0.2)'}} /><span style={{fontSize:12,color:'#e2e8f0'}}>토요일</span></div>
             </>}
             <span style={{fontSize:12,color:'#94a3b8'}}>⠿ 드래그로 순서 변경 | 바 드래그로 일정 조정 | 그룹명 더블클릭 이름 변경</span>
+          </div>
+          <div style={{flex:1}}/>
+          {/* 모두접기/펴기 */}
+          <div style={{display:'flex',gap:4}}>
+            <button onClick={expandAll} style={{height:26,padding:'0 10px',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:6,cursor:'pointer',fontSize:11,color:'#e2e8f0',fontWeight:500}}>▼ 모두펴기</button>
+            <button onClick={collapseAll} style={{height:26,padding:'0 10px',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:6,cursor:'pointer',fontSize:11,color:'#e2e8f0',fontWeight:500}}>▶ 모두접기</button>
           </div>
         </div>}
           </>
@@ -1327,7 +1307,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           {/* Column Header */}
           {(viewMode === 'day' || viewMode === 'week') ? (
             <div style={{position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'2px solid #e2e8f0',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW}}>
-              {/* 월 띠 */}
               <div style={{display:'flex',height:20,borderBottom:'1px solid #e8ecf8'}}>
                 <div style={{width:isCompactUI?22:LEFT_COL+ASSIGNEE_COL+SUB_COL,minWidth:isCompactUI?22:LEFT_COL+ASSIGNEE_COL+SUB_COL,flexShrink:0,background:'#f9fafb',borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:10}} />
                 <div style={{display:'flex',width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,overflow:'hidden'}}>
@@ -1337,13 +1316,12 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                     else acc[acc.length - 1].count++;
                     return acc;
                   }, []).map((seg: any, i: number) => (
-                    <div key={i} style={{width:seg.count*MONTH_COL,minWidth:seg.count*MONTH_COL,flexShrink:0,height:20,background:['#eff6ff','#f0fdf4','#fef3c7','#fdf4ff','#fff7ed','#f0fdfa','#fef9c3','#faf5ff','#fff1f2','#f0f9ff','#fefce8','#f5f3ff'][i%12],borderRight:'1px solid #e8ecf8',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+                    <div key={i} style={{width:seg.count*MONTH_COL,minWidth:seg.count*MONTH_COL,flexShrink:0,height:20,background:['#eff6ff','#f0fdf4','#fef3c7','#fdf4ff','#fff7ed','#f0fdfa','#fefce8','#faf5ff','#fff1f2','#f0f9ff','#fefce8','#f5f3ff'][i%12],borderRight:'1px solid #e8ecf8',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
                       <span style={{fontSize:10,fontWeight:700,color:'#374151',whiteSpace:'nowrap'}}>{seg.month}월</span>
                     </div>
                   ))}
                 </div>
               </div>
-              {/* 주/일 행 */}
               <div style={{display:'flex',height:22}}>
                 {isCompactUI ? (
                   <div style={{width:22,minWidth:22,flexShrink:0,background:'#f9fafb',borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:10}} />
@@ -1410,9 +1388,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             ) : groupedFiltered.map(group=>(
               <React.Fragment key={group.name}>
                 <div draggable onDragStart={e=>handleRowDragStart(e,{type:'group',name:group.name})} onDragOver={e=>handleRowDragOver(e,{type:'group',name:group.name})} onDrop={e=>handleRowDrop(e,{type:'group',name:group.name})} onDragEnd={handleRowDragEnd}
-                  style={{display:'flex',borderBottom:'2px solid #e5e7eb',background:rowDragOver?.type==='group'&&rowDragOver?.name===group.name?'#e0e7ff':'#f0f4ff',width:totalW,opacity:rowDrag?.type==='group'&&rowDrag?.name===group.name?0.5:1}}>
+                  style={{display:'flex',borderBottom:'1px solid #e5e7eb',background:rowDragOver?.type==='group'&&rowDragOver?.name===group.name?'#e0e7ff':'white',width:totalW,opacity:rowDrag?.type==='group'&&rowDrag?.name===group.name?0.5:1}}>
                   {isCompactUI ? (
-                    /* compact: 22px 아이콘 컬럼 */
                     <div style={{width:22,minWidth:22,flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
                       borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:8,background:'#eff6ff',borderLeft:'3px solid #6366f1'}}>
                       <button onClick={()=>toggleGroup(group.name)} style={{border:'none',background:'none',cursor:'pointer',padding:'4px 6px',fontSize:10,color:'#6366f1',lineHeight:1}}>{collapsedGroups.has(group.name)?'▶':'▼'}</button>
@@ -1420,7 +1397,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   ) : (
                     <div style={{width:LEFT_COL,minWidth:LEFT_COL,flexShrink:0,display:'flex',alignItems:'center',
                       padding:'8px 12px',gap:8,
-                      borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:8,background:'inherit',borderLeft:'4px solid #6366f1',overflow:'hidden'}}>
+                      borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:8,background:'#f0f4ff',borderLeft:'4px solid #6366f1',overflow:'hidden'}}>
                       <span style={{fontSize:14,color:'#9ca3af',cursor:'grab',userSelect:'none',padding:'0 2px'}}>⠿</span>
                       <button onClick={()=>toggleGroup(group.name)} style={{border:'none',background:'none',cursor:'pointer',padding:2,fontSize:13,color:'#6366f1'}}>{collapsedGroups.has(group.name)?'▶':'▼'}</button>
                       <span style={{fontSize:15,color:'#6366f1'}}>📁</span>
@@ -1436,8 +1413,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                     </div>
                   )}
                   {!isCompactUI && <>
-                    <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,borderRight:'1px solid #e5e7eb',position:'sticky',left:LEFT_COL,zIndex:8,background:'inherit'}} />
-                    <div style={{width:SUB_COL,minWidth:SUB_COL,flexShrink:0,borderRight:'1px solid #e5e7eb',position:'sticky',left:LEFT_COL+ASSIGNEE_COL,zIndex:8,background:'inherit'}} />
+                    <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,borderRight:'1px solid #e5e7eb',position:'sticky',left:LEFT_COL,zIndex:8,background:'white'}} />
+                    <div style={{width:SUB_COL,minWidth:SUB_COL,flexShrink:0,borderRight:'1px solid #e5e7eb',position:'sticky',left:LEFT_COL+ASSIGNEE_COL,zIndex:8,background:'white'}} />
                   </>}
                   <div style={{width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,position:'relative',minHeight:(()=>{
                     if (!collapsedGroups.has(group.name)) return isCompactUI?32:44;
@@ -1479,27 +1456,64 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   const {pos:projPos,progress:projProg,startDate:projStart,endDate:projEnd}=getProjectMeta(proj);
                   const catColor=CATEGORY_COLORS[proj.category];
                   const collapsedMinH=calcCollapsedMinH(proj);
+
+                  // ─────────────────────────────────────────────────────
+                  // 행 전체 minHeight 계산
+                  // - compact: 32px 고정
+                  // - 펼침 또는 task 없음: 설명 있으면 66, 없으면 52
+                  // - 접힘(task 있음): collapsedMinH 기준, 설명 있으면 +18
+                  // ─────────────────────────────────────────────────────
+                  const projRowMinH = isCompactUI
+                    ? 32
+                    : (proj.expanded || proj.tasks.length === 0)
+                      ? (proj.description ? 66 : 52)
+                      : (collapsedMinH + (proj.description ? 18 : 0));
+
                   return (
                     <React.Fragment key={proj.id}>
                       <div draggable onDragStart={e=>handleRowDragStart(e,{type:'project',id:proj.id,group:proj.group||'미분류'})} onDragOver={e=>handleRowDragOver(e,{type:'project',id:proj.id,group:proj.group||'미분류'})} onDrop={e=>handleRowDrop(e,{type:'project',id:proj.id,group:proj.group||'미분류'})} onDragEnd={handleRowDragEnd}
-                        style={{display:'flex',borderBottom:'1px solid #e5e7eb',background:rowDragOver?.type==='project'&&rowDragOver?.id===proj.id?'#dbeafe':c.rowBg,opacity:rowDrag?.type==='project'&&rowDrag?.id===proj.id?0.5:1}}>
+                        style={{display:'flex',borderBottom:'1px solid #e5e7eb',background:rowDragOver?.type==='project'&&rowDragOver?.id===proj.id?'#dbeafe':'white',opacity:rowDrag?.type==='project'&&rowDrag?.id===proj.id?0.5:1,minHeight:projRowMinH}}>
+
                         {isCompactUI ? (
-                          /* compact: 22px 아이콘 컬럼 — 색상선 + 접기버튼 */
                           <div style={{width:22,minWidth:22,flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
                             borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:8,background:'inherit',
                             borderLeft:`3px solid ${catColor?catColor.border:c.border}`}}>
                             <button onClick={()=>toggleProject(proj.id)} style={{border:'none',background:'none',cursor:'pointer',padding:'4px 6px',fontSize:10,color:catColor?catColor.border:c.text,lineHeight:1}}>{proj.expanded?'▼':'▶'}</button>
                           </div>
                         ) : (
-                          <div style={{width:LEFT_COL,minWidth:LEFT_COL,flexShrink:0,display:'flex',alignItems:'center',
-                            padding:'8px 12px 8px 20px',borderRight:'1px solid #e5e7eb',gap:8,
-                            position:'sticky',left:0,zIndex:8,background:'inherit',overflow:'hidden'}}>
+                          // ─────────────────────────────────────────────
+                          // [B안] 6px 굵은 좌측 바 + 카테고리 연한 배경
+                          // ─────────────────────────────────────────────
+                          <div style={{
+                            width:LEFT_COL, minWidth:LEFT_COL, flexShrink:0,
+                            display:'flex', alignItems:'center',
+                            padding:'6px 12px 6px 16px',
+                            borderRight:'1px solid #e5e7eb',
+                            borderLeft:`6px solid ${catColor?catColor.border:c.border}`,
+                            background: catColor ? `color-mix(in srgb, ${catColor.bg} 55%, white)` : c.rowBg,
+                            gap:8,
+                            position:'sticky', left:0, zIndex:8, overflow:'hidden',
+                          }}>
                             <span style={{fontSize:14,color:'#d1d5db',cursor:'grab',userSelect:'none',flexShrink:0}}>⠿</span>
-                            <button onClick={()=>toggleProject(proj.id)} style={{flexShrink:0,padding:2,borderRadius:4,border:'none',background:'none',cursor:'pointer'}}><span style={{color:c.text,fontSize:14}}>{proj.expanded?'▼':'▶'}</span></button>
-                            <div style={{width:3,borderRadius:2,flexShrink:0,alignSelf:'stretch',background:c.border}} />
-                            <div style={{flex:1,minWidth:0,display:'flex',alignItems:'center',gap:4,overflow:'hidden'}}>
-                              {catColor && <span style={{fontSize:12,padding:'2px 8px',borderRadius:8,background:catColor.bg,color:catColor.text,border:`1px solid ${catColor.border}`,fontWeight:600,flexShrink:0,whiteSpace:'nowrap'}}>{proj.category}</span>}
-                              <span style={{fontWeight:700,fontSize:15,color:c.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{proj.name}</span>
+                            <button onClick={()=>toggleProject(proj.id)} style={{flexShrink:0,padding:2,borderRadius:4,border:'none',background:'none',cursor:'pointer'}}>
+                              <span style={{color:catColor?catColor.border:c.text,fontSize:14}}>{proj.expanded?'▼':'▶'}</span>
+                            </button>
+                            <div style={{flex:1,minWidth:0,overflow:'hidden'}}>
+                              {/* 프로젝트명 */}
+                              <div style={{fontWeight:700,fontSize:15,color:'#1e293b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                {proj.name}
+                              </div>
+                              {/* 설명 1줄 */}
+                              {proj.description && (
+                                <div
+                                  style={descLineStyle}
+                                  onMouseEnter={e=>{if(tooltipTimer.current)clearTimeout(tooltipTimer.current);tooltipTimer.current=setTimeout(()=>{setTooltip({descOnly:true,name:proj.description});setTooltipPos({x:e.clientX,y:e.clientY});},80);}}
+                                  onMouseMove={e=>setTooltipPos({x:e.clientX,y:e.clientY})}
+                                  onMouseLeave={()=>{if(tooltipTimer.current)clearTimeout(tooltipTimer.current);setTooltip(null);}}
+                                >
+                                  {proj.description}
+                                </div>
+                              )}
                             </div>
                             <div style={{display:'flex',gap:4,flexShrink:0}}>
                               <button onClick={()=>setEditingProject(proj)} style={{padding:4,borderRadius:4,border:'none',background:'none',cursor:'pointer',fontSize:12}}>✏️</button>
@@ -1509,10 +1523,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                           </div>
                         )}
                         {!isCompactUI && <>
-                          <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,display:'flex',alignItems:'flex-start',justifyContent:'center',padding:'6px 4px',borderRight:'1px solid #e5e7eb',fontSize:12,color:'#4b5563',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',position:'sticky',left:LEFT_COL,zIndex:8,background:'inherit'}}>{proj.owner||<span style={{color:'#d1d5db'}}>-</span>}</div>
-                          <div style={{width:SUB_COL,minWidth:SUB_COL,flexShrink:0,display:'flex',alignItems:'flex-start',justifyContent:'center',padding:'6px 4px',borderRight:'1px solid #e5e7eb',fontSize:12,color:'#6b7280',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',position:'sticky',left:LEFT_COL+ASSIGNEE_COL,zIndex:8,background:'inherit'}}>{proj.subOwner||<span style={{color:'#d1d5db'}}>-</span>}</div>
+                          <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,display:'flex',alignItems:'flex-start',justifyContent:'center',padding:'6px 4px',borderRight:'1px solid #e5e7eb',fontSize:12,color:'#4b5563',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',position:'sticky',left:LEFT_COL,zIndex:8,background:'white'}}>{proj.owner||<span style={{color:'#d1d5db'}}>-</span>}</div>
+                          <div style={{width:SUB_COL,minWidth:SUB_COL,flexShrink:0,display:'flex',alignItems:'flex-start',justifyContent:'center',padding:'6px 4px',borderRight:'1px solid #e5e7eb',fontSize:12,color:'#6b7280',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',position:'sticky',left:LEFT_COL+ASSIGNEE_COL,zIndex:8,background:'white'}}>{proj.subOwner||<span style={{color:'#d1d5db'}}>-</span>}</div>
                         </>}
-                        <div style={{width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,position:'relative',display:'flex',alignItems:'center',minHeight:isCompactUI?32:(proj.expanded||proj.tasks.length===0?52:collapsedMinH)}}>
+                        <div style={{width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,position:'relative',display:'flex',alignItems:'center',minHeight:projRowMinH}}>
                           {GridLines}
                           {DayOverlayLines}
                           {todayLeft!==null && <div style={{position:'absolute',left:todayLeft,top:0,bottom:0,width:2,background:'#ef4444',opacity:0.7,zIndex:5}} />}
@@ -1540,7 +1554,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                             </div>);
                           })()}
                           {proj.tasks.length>0 && !proj.expanded && (()=>{
-                            // compact: 접힌 프로젝트 → 프로젝트 전체 기간 바 하나만 표시 (그룹 접힘과 동일)
                             if (isCompactUI) {
                               if (!projPos) return null;
                               return (
@@ -1558,9 +1571,16 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                                 </div>
                               );
                             }
-                            // PC: 기존 lane-packed task 바들
+                            // PC: lane-packed task bars
                             const validTasks=proj.tasks.filter((t:any)=>t.startDate&&t.endDate); const laned=assignLanes(validTasks); const laneCount=calcLaneCount(laned); const totalH=laneCount*(TASK_ROW_H+TASK_GAP)-TASK_GAP; const containerH=collapsedMinH; const topBase=(containerH-totalH)/2;
-                            return laned.map(({task,lane,pos:tpos})=>{ if(!tpos)return null; const taskCatColor=CATEGORY_COLORS[task.category]; const tc=COLOR_MAP[proj.color]||COLOR_MAP.blue; const barBg=taskCatColor?taskCatColor.border:tc.bar; const barBgLight=taskCatColor?taskCatColor.bg:tc.barLight; const topOffset=topBase+lane*(TASK_ROW_H+TASK_GAP); const isDrag=dragging?.pid===proj.id&&dragging?.tid===task.id;
+                            return laned.map(({task,lane,pos:tpos})=>{
+                              if(!tpos)return null;
+                              // [수정2] Task 바 색상: Task 카테고리 우선, 없으면 프로젝트 색상
+                              const taskCatColor=CATEGORY_COLORS[task.category];
+                              const tc=COLOR_MAP[proj.color]||COLOR_MAP.blue;
+                              const barBg=taskCatColor?taskCatColor.border:tc.bar;
+                              const barBgLight=taskCatColor?taskCatColor.bg:tc.barLight;
+                              const topOffset=topBase+lane*(TASK_ROW_H+TASK_GAP); const isDrag=dragging?.pid===proj.id&&dragging?.tid===task.id;
                               return (<div key={task.id} onMouseEnter={e=>{if(tooltipTimer.current)clearTimeout(tooltipTimer.current);tooltipTimer.current=setTimeout(()=>{setTooltip({startDate:task.startDate,endDate:task.endDate,name:task.name});setTooltipPos({x:e.clientX,y:e.clientY});},isCompactUI?0:80);}} onMouseMove={e=>setTooltipPos({x:e.clientX,y:e.clientY})} onMouseLeave={()=>{if(tooltipTimer.current)clearTimeout(tooltipTimer.current);if(!isDrag)setTooltip(null);}} onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'move')}
                                 style={{position:'absolute',left:tpos.left,width:tpos.width,height:TASK_ROW_H,top:topOffset,background:barBgLight,borderRadius:3,zIndex:6,cursor:'grab',display:'flex',alignItems:'center',overflow:'visible',minWidth:4,border:`1px solid ${barBg}55`}}>
                                 <div onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'start')} style={{position:'absolute',left:0,top:0,bottom:0,width:6,cursor:'ew-resize',zIndex:8,borderRadius:'3px 0 0 3px'}} />
@@ -1574,28 +1594,53 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                       </div>
 
                       {proj.expanded && proj.tasks.map((task:any)=>{
-                        // compact에서 접힌 상태면 task 행 렌더 완전 차단
                         if (!proj.expanded) return null;
                         const pos=getPos(task.startDate,task.endDate); const isDrag=dragging?.pid===proj.id&&dragging?.tid===task.id;
+
+                        // [수정2] Task 바 색상 (펼친 상태)
+                        const taskCatColor=CATEGORY_COLORS[task.category];
+                        const tc=COLOR_MAP[proj.color]||COLOR_MAP.blue;
+                        const taskBarBg=taskCatColor?taskCatColor.border:tc.bar;
+                        const taskBarBgLight=taskCatColor?taskCatColor.bg:tc.barLight;
+
+                        // [수정3] Task 설명 있을 때 행 높이
+                        const taskRowMinH = !isCompactUI && task.description ? 60 : (isCompactUI ? 32 : 46);
+
                         return (
                           <div key={task.id} draggable onDragStart={e=>handleRowDragStart(e,{type:'task',tid:task.id,pid:proj.id})} onDragOver={e=>handleRowDragOver(e,{type:'task',tid:task.id,pid:proj.id})} onDrop={e=>handleRowDrop(e,{type:'task',tid:task.id,pid:proj.id})} onDragEnd={handleRowDragEnd}
-                            style={{display:'flex',borderBottom:'1px solid #e5e7eb',background:rowDragOver?.type==='task'&&rowDragOver?.tid===task.id?'#f0fdf4':'white',opacity:rowDrag?.type==='task'&&rowDrag?.tid===task.id?0.5:1}}>
+                            style={{display:'flex',borderBottom:'1px solid #e5e7eb',background:rowDragOver?.type==='task'&&rowDragOver?.tid===task.id?'#f0fdf4':'white',opacity:rowDrag?.type==='task'&&rowDrag?.tid===task.id?0.5:1,minHeight:taskRowMinH}}>
                             {isCompactUI ? (
-                              /* compact task: 22px — └ 들여쓰기 표시 */
                               <div style={{width:22,minWidth:22,flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
                                 borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:8,background:'inherit',
                                 borderLeft:`3px solid ${catColor?catColor.border+'88':c.border+'88'}`}}>
                                 <span style={{fontSize:8,color:'#c4b5fd',lineHeight:1}}>└</span>
                               </div>
                             ) : (
+                              // ─────────────────────────────────────────
+                              // [수정3] Task 설명 1줄 추가
+                              // ─────────────────────────────────────────
                               <div style={{width:LEFT_COL,minWidth:LEFT_COL,flexShrink:0,display:'flex',alignItems:'center',
-                                padding:'8px 12px',borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:8,background:'inherit',overflow:'hidden'}}>
+                                padding:'6px 12px',borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:8,background:'white',overflow:'hidden'}}>
                                 <div style={{paddingLeft:36,display:'flex',alignItems:'center',gap:8,width:'100%',overflow:'hidden'}}>
                                   <span style={{fontSize:12,color:'#c4b5fd',flexShrink:0,userSelect:'none'}}>└</span>
                                   <span style={{fontSize:14,color:'#d1d5db',cursor:'grab',userSelect:'none',flexShrink:0}}>⠿</span>
-                                  <div style={{flex:1,minWidth:0,display:'flex',alignItems:'center',gap:4,overflow:'hidden'}}>
-                                    {task.category && CATEGORY_COLORS[task.category] && (()=>{const cc=CATEGORY_COLORS[task.category];return <span style={{fontSize:11,padding:'1px 7px',borderRadius:7,background:cc.bg,color:cc.text,border:`1px solid ${cc.border}`,fontWeight:600,flexShrink:0,whiteSpace:'nowrap'}}>{task.category}</span>;})()}
-                                    <span style={{fontSize:14,color:'#1f2937',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{task.name}</span>
+                                  <div style={{flex:1,minWidth:0,overflow:'hidden'}}>
+                                    {/* Task 이름 */}
+                                    <div style={{display:'flex',alignItems:'center',gap:4,overflow:'visible'}}>
+                                      {task.category && CATEGORY_COLORS[task.category] && (()=>{const cc=CATEGORY_COLORS[task.category];return <span style={{fontSize:10,padding:'1px 5px',borderRadius:5,background:cc.bg,color:cc.text,border:`1px solid ${cc.border}`,fontWeight:600,flexShrink:0,whiteSpace:'nowrap'}}>{task.category}</span>;})()}
+                                      <span style={{fontSize:13,color:'#1f2937',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,minWidth:0}}>{task.name}</span>
+                                    </div>
+                                    {/* Task 설명 1줄 */}
+                                    {task.description && (
+                                      <div
+                                        style={descLineStyle}
+                                        onMouseEnter={e=>{if(tooltipTimer.current)clearTimeout(tooltipTimer.current);tooltipTimer.current=setTimeout(()=>{setTooltip({descOnly:true,name:task.description});setTooltipPos({x:e.clientX,y:e.clientY});},80);}}
+                                        onMouseMove={e=>setTooltipPos({x:e.clientX,y:e.clientY})}
+                                        onMouseLeave={()=>{if(tooltipTimer.current)clearTimeout(tooltipTimer.current);setTooltip(null);}}
+                                      >
+                                        {task.description}
+                                      </div>
+                                    )}
                                   </div>
                                   <div style={{display:'flex',gap:4,flexShrink:0}}>
                                     <button onClick={()=>setEditingTask({task,pid:proj.id})} style={{padding:4,borderRadius:4,border:'none',background:'none',cursor:'pointer',fontSize:12}}>✏️</button>
@@ -1605,10 +1650,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                               </div>
                             )}
                             {!isCompactUI && <>
-                              <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',padding:'6px 4px',borderRight:'1px solid #e5e7eb',fontSize:12,color:'#6b7280',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',position:'sticky',left:LEFT_COL,zIndex:8,background:'inherit'}}>{task.assignee||<span style={{color:'#d1d5db'}}>-</span>}</div>
-                              <div style={{width:SUB_COL,minWidth:SUB_COL,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',padding:'6px 4px',borderRight:'1px solid #e5e7eb',fontSize:12,color:'#9ca3af',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',position:'sticky',left:LEFT_COL+ASSIGNEE_COL,zIndex:8,background:'inherit'}}>{task.subAssignee||<span style={{color:'#d1d5db'}}>-</span>}</div>
+                              <div style={{width:ASSIGNEE_COL,minWidth:ASSIGNEE_COL,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',padding:'6px 4px',borderRight:'1px solid #e5e7eb',fontSize:12,color:'#6b7280',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',position:'sticky',left:LEFT_COL,zIndex:8,background:'white'}}>{task.assignee||<span style={{color:'#d1d5db'}}>-</span>}</div>
+                              <div style={{width:SUB_COL,minWidth:SUB_COL,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',padding:'6px 4px',borderRight:'1px solid #e5e7eb',fontSize:12,color:'#9ca3af',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',position:'sticky',left:LEFT_COL+ASSIGNEE_COL,zIndex:8,background:'white'}}>{task.subAssignee||<span style={{color:'#d1d5db'}}>-</span>}</div>
                             </>}
-                            <div style={{width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,position:'relative',minHeight:isCompactUI?32:46,display:'flex',alignItems:'center'}}>
+                            <div style={{width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,position:'relative',minHeight:taskRowMinH,display:'flex',alignItems:'center'}}>
                               {GridLines}
                               {DayOverlayLines}
                               {todayLeft!==null && <div style={{position:'absolute',left:todayLeft,top:0,bottom:0,width:2,background:'#ef4444',opacity:0.4,zIndex:5}} />}
@@ -1621,11 +1666,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                               )}
                               {pos && (
                                 <div style={{position:'absolute',left:pos.left,width:pos.width,height:22,top:'50%',transform:'translateY(-50%)',
-                                  background:isCompactUI?(catColor?catColor.border:c.bar):(catColor?catColor.bg:c.barLight),
-                                  borderRadius:4,border:`1px solid ${catColor?catColor.border:c.bar}55`,cursor:'grab',zIndex:6,overflow:'visible'}}
+                                  background:isCompactUI ? taskBarBgLight : taskBarBgLight,
+                                  borderRadius:4,border:`1px solid ${taskBarBg}55`,cursor:'grab',zIndex:6,overflow:'visible'}}
                                   onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'move')} onMouseEnter={e=>{if(tooltipTimer.current)clearTimeout(tooltipTimer.current);tooltipTimer.current=setTimeout(()=>{setTooltip({name:task.name,startDate:task.startDate,endDate:task.endDate});setTooltipPos({x:e.clientX,y:e.clientY});},isCompactUI?0:80);}} onMouseMove={e=>setTooltipPos({x:e.clientX,y:e.clientY})} onMouseLeave={()=>{if(tooltipTimer.current)clearTimeout(tooltipTimer.current);if(!isDrag)setTooltip(null);}} onTouchStart={e=>{e.stopPropagation();const t=e.touches[0];if(tooltipTimer.current)clearTimeout(tooltipTimer.current);setTooltip({name:task.name,startDate:task.startDate,endDate:task.endDate});setTooltipPos({x:t.clientX,y:t.clientY});}} onTouchEnd={e=>{e.stopPropagation();if(isCompactUI){setTooltip(null);setEditingTask({task,pid:proj.id});}else{setTimeout(()=>setTooltip(null),1500);}}}>
                                   <div style={{position:'absolute',left:0,top:0,bottom:0,width:8,cursor:'ew-resize',zIndex:8,borderRadius:'5px 0 0 5px'}} onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'start')} />
-                                  <div style={{width:`${task.progress||0}%`,height:'100%',background:catColor?catColor.border:c.bar,borderRadius:4,pointerEvents:'none'}} />
+                                  <div style={{width:`${task.progress||0}%`,height:'100%',background:taskBarBg,borderRadius:4,pointerEvents:'none'}} />
                                   {!isCompactUI && (pos.width>40?<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,pointerEvents:'none',color:'#1f2937'}}>{task.progress||0}%</div>:<div style={{position:'absolute',left:pos.width+5,top:'50%',transform:'translateY(-50%)',whiteSpace:'nowrap',fontSize:11,fontWeight:600,pointerEvents:'none',color:'#374151'}}>{task.progress||0}%</div>)}
                                   <div style={{position:'absolute',right:0,top:0,bottom:0,width:8,cursor:'ew-resize',zIndex:8,borderRadius:'0 5px 5px 0'}} onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'end')} />
                                 </div>
@@ -1643,11 +1688,15 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
         </div>
       </div>
 
-      {tooltip && (tooltip.holidayOnly || tooltip.startDate) && (
+      {tooltip && (tooltip.holidayOnly || tooltip.descOnly || tooltip.startDate) && (
         <div style={{position:'fixed',left:tooltipPos.x+14,top:tooltipPos.y-8,background:'#111827',color:'white',fontSize:13,padding:'10px 14px',borderRadius:8,whiteSpace:'nowrap',pointerEvents:'none',zIndex:99999,boxShadow:'0 4px 16px rgba(0,0,0,0.45)',lineHeight:1.7,border:'1px solid rgba(255,255,255,0.08)'}}>
           {tooltip.holidayOnly ? (
             <div style={{display:'flex',alignItems:'center',gap:6,fontWeight:600,color:'#fca5a5',fontSize:13}}>
               🗓️ {tooltip.name}
+            </div>
+          ) : tooltip.descOnly ? (
+            <div style={{fontWeight:500,color:'#e2e8f0',fontSize:13,maxWidth:320,whiteSpace:'pre-wrap'}}>
+              {tooltip.name}
             </div>
           ) : (
             <>
