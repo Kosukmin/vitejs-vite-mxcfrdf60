@@ -415,6 +415,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const [groupOrder, setGroupOrder]           = useState<string[]>([]);
   const [realtimeToast, setRealtimeToast]     = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [uploadPreview, setUploadPreview]     = useState<any[]|null>(null);
+  const [uploadError, setUploadError]         = useState<string>('');
 
   const dragRef      = useRef<any>(null);
   const rowDragRef   = useRef<any>(null);
@@ -720,6 +722,83 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '간트차트');
     XLSX.writeFile(wb, `${currentApp.csvPrefix}_간트차트_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
+  const handleImportXLSX = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadError('');
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = new Uint8Array(ev.target!.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (rows.length < 2) { setUploadError('데이터가 없습니다.'); return; }
+        const header = rows[0] as string[];
+        // 헤더 인덱스 매핑
+        const hi = (name: string) => header.findIndex(h => String(h).trim() === name);
+        const iGrp=hi('그룹'), iCat=hi('카테고리'), iProj=hi('프로젝트'), iOwn=hi('오너(정)'), iSub=hi('부오너(부)');
+        const iPSD=hi('프로젝트 시작일'), iPED=hi('프로젝트 종료일'), iPProg=hi('프로젝트 진행률'), iPDesc=hi('프로젝트 설명');
+        const iTask=hi('Task'), iTDesc=hi('Task 설명'), iAss=hi('담당자(정)'), iSAss=hi('부담당자(부)');
+        const iTSD=hi('Task 시작일'), iTED=hi('Task 종료일'), iTProg=hi('Task 진행률');
+        if (iProj === -1) { setUploadError('헤더 형식이 맞지 않습니다. Excel 다운로드 양식을 사용해주세요.'); return; }
+        // 프로젝트별로 그룹핑
+        const projMap: Record<string, any> = {};
+        const projOrder: string[] = [];
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          const projName = String(r[iProj]||'').trim();
+          if (!projName) continue;
+          const key = `${String(r[iGrp]||'미분류').trim()}__${projName}`;
+          if (!projMap[key]) {
+            projOrder.push(key);
+            projMap[key] = {
+              id: Date.now() + Math.random(),
+              name: projName,
+              group: String(r[iGrp]||'미분류').trim(),
+              category: String(r[iCat]||'').trim(),
+              owner: String(r[iOwn]||'').trim(),
+              subOwner: String(r[iSub]||'').trim(),
+              startDate: String(r[iPSD]||'').trim(),
+              endDate: String(r[iPED]||'').trim(),
+              progress: parseInt(String(r[iPProg]||'0').replace('%',''))||0,
+              description: String(r[iPDesc]||'').trim(),
+              color: 'blue', expanded: true, tasks: [],
+            };
+          }
+          const taskName = String(r[iTask]||'').trim();
+          if (taskName) {
+            projMap[key].tasks.push({
+              id: Date.now() + Math.random(),
+              name: taskName,
+              description: String(r[iTDesc]||'').trim(),
+              assignee: String(r[iAss]||'').trim(),
+              subAssignee: String(r[iSAss]||'').trim(),
+              startDate: String(r[iTSD]||'').trim(),
+              endDate: String(r[iTED]||'').trim(),
+              progress: parseInt(String(r[iTProg]||'0').replace('%',''))||0,
+              category: String(r[iCat]||'').trim(),
+              dependencies: [],
+            });
+          }
+        }
+        const parsed = projOrder.map(k => projMap[k]);
+        if (parsed.length === 0) { setUploadError('파싱된 프로젝트가 없습니다.'); return; }
+        setUploadPreview(parsed);
+      } catch(err) {
+        setUploadError('파일 파싱 중 오류가 발생했습니다.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const confirmImport = () => {
+    if (!uploadPreview) return;
+    save([...projects, ...uploadPreview]);
+    setUploadPreview(null);
   };
 
   const today = new Date();
@@ -1247,6 +1326,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             </div>
             <button onClick={loadHistory} style={{display:'flex',alignItems:'center',gap:5,height:30,padding:'0 11px',background:'rgba(124,58,237,0.85)',color:'white',border:'1px solid rgba(167,139,250,0.3)',borderRadius:7,cursor:'pointer',fontSize:12,fontWeight:500}}>🕐 히스토리</button>
             <button onClick={exportXLSX} style={{display:'flex',alignItems:'center',gap:5,height:30,padding:'0 11px',background:'rgba(22,163,74,0.85)',color:'white',border:'1px solid rgba(74,222,128,0.2)',borderRadius:7,cursor:'pointer',fontSize:12,fontWeight:500}}>⬇ Excel</button>
+            <label style={{display:'flex',alignItems:'center',gap:5,height:30,padding:'0 11px',background:'rgba(59,130,246,0.85)',color:'white',border:'1px solid rgba(96,165,250,0.3)',borderRadius:7,cursor:'pointer',fontSize:12,fontWeight:500}}>
+              ⬆ Excel 업로드
+              <input type="file" accept=".xlsx,.xls" onChange={handleImportXLSX} style={{display:'none'}} />
+            </label>
             <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.07)',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',padding:2,gap:2}}>
               <span style={{fontSize:10,color:'rgba(148,163,184,0.5)',padding:'0 4px',userSelect:'none'}}>🔍</span>
               {([['year','월','12개월 한화면'],['half','월↔','6개월씩 스크롤'],['week','주','주단위 스크롤'],['day','일','일단위 스크롤']] as const).map(([mode,label,title])=>(
@@ -1768,6 +1851,57 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       {editingTask && <TaskEditModal task={editingTask.task} pid={editingTask.pid} onClose={()=>setEditingTask(null)} />}
       {showChangePw && <ChangePwModal />}
       {showHistory && <HistoryModal />}
+
+      {/* 업로드 에러 토스트 */}
+      {uploadError && (
+        <div style={{position:'fixed',top:20,left:'50%',transform:'translateX(-50%)',background:'#fee2e2',border:'1px solid #fca5a5',color:'#991b1b',padding:'10px 20px',borderRadius:10,fontSize:13,fontWeight:600,zIndex:9999,boxShadow:'0 4px 16px rgba(0,0,0,0.15)'}}>
+          ⚠️ {uploadError}
+          <button onClick={()=>setUploadError('')} style={{marginLeft:12,background:'none',border:'none',cursor:'pointer',color:'#991b1b',fontWeight:700}}>✕</button>
+        </div>
+      )}
+
+      {/* 업로드 미리보기 모달 */}
+      {uploadPreview && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:9000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+          <div style={{background:'white',borderRadius:16,width:'100%',maxWidth:700,maxHeight:'80vh',display:'flex',flexDirection:'column',boxShadow:'0 8px 40px rgba(0,0,0,0.3)'}}>
+            <div style={{padding:'16px 20px',borderBottom:'1px solid #e5e7eb',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div>
+                <div style={{fontSize:16,fontWeight:700,color:'#1e293b'}}>📊 업로드 미리보기</div>
+                <div style={{fontSize:12,color:'#64748b',marginTop:2}}>프로젝트 {uploadPreview.length}개 · Task {uploadPreview.reduce((s,p)=>s+p.tasks.length,0)}개가 추가됩니다</div>
+              </div>
+              <button onClick={()=>setUploadPreview(null)} style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:'#9ca3af'}}>✕</button>
+            </div>
+            <div style={{flex:1,overflowY:'auto',padding:'12px 20px'}}>
+              {uploadPreview.map((proj, pi) => (
+                <div key={pi} style={{marginBottom:10,border:'1px solid #e5e7eb',borderRadius:10,overflow:'hidden'}}>
+                  <div style={{padding:'8px 12px',background:'#f8fafc',borderBottom:'1px solid #e5e7eb',display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontSize:11,color:'#6366f1',background:'rgba(99,102,241,0.1)',padding:'1px 7px',borderRadius:8,fontWeight:700}}>{proj.group}</span>
+                    {proj.category && <span style={{fontSize:11,fontWeight:700,padding:'1px 6px',borderRadius:6,background: CATEGORY_COLORS[proj.category]?.bg||'#f1f5f9',color:CATEGORY_COLORS[proj.category]?.text||'#374151',border:`1px solid ${CATEGORY_COLORS[proj.category]?.border||'#e5e7eb'}`}}>{proj.category}</span>}
+                    <span style={{fontSize:13,fontWeight:700,color:'#1e293b',flex:1}}>{proj.name}</span>
+                    {proj.owner && <span style={{fontSize:11,color:'#64748b'}}>👤 {proj.owner}</span>}
+                  </div>
+                  {proj.tasks.length > 0 && (
+                    <div style={{padding:'6px 12px'}}>
+                      {proj.tasks.map((t: any, ti: number) => (
+                        <div key={ti} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:ti<proj.tasks.length-1?'1px solid #f1f5f9':'none'}}>
+                          <span style={{fontSize:11,color:'#c4b5fd'}}>└</span>
+                          <span style={{fontSize:12,color:'#374151',flex:1}}>{t.name}</span>
+                          {t.assignee && <span style={{fontSize:11,color:'#94a3b8'}}>👤 {t.assignee}</span>}
+                          {t.startDate && <span style={{fontSize:11,color:'#94a3b8'}}>{t.startDate} ~ {t.endDate}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{padding:'14px 20px',borderTop:'1px solid #e5e7eb',display:'flex',justifyContent:'flex-end',gap:8}}>
+              <button onClick={()=>setUploadPreview(null)} style={{padding:'8px 20px',borderRadius:8,border:'1px solid #e5e7eb',background:'white',fontSize:13,cursor:'pointer',color:'#374151'}}>취소</button>
+              <button onClick={confirmImport} style={{padding:'8px 20px',borderRadius:8,border:'none',background:'#3b82f6',color:'white',fontSize:13,fontWeight:700,cursor:'pointer'}}>✓ 추가 저장</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
