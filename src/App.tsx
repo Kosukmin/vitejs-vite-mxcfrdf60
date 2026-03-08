@@ -431,8 +431,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const tooltipTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const HISTORY_DEBOUNCE_MS = 5 * 60 * 1000;
 
-  useEffect(() => { draggingRef.current = dragging; }, [dragging]);
+  // ── beforeunload 용 최신 projects ref ───────────────────────
+  const projectsRef = useRef<any[]>([]);
+  useEffect(() => { projectsRef.current = projects; }, [projects]);
 
+  useEffect(() => { draggingRef.current = dragging; }, [dragging]);
   useEffect(() => { if (isPortrait) setHeaderCollapsed(false); }, [isPortrait]);
 
   useEffect(() => {
@@ -514,6 +517,41 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     return Math.max(52, totalH + 12);
   }, [assignLanes]);
 
+  // ── 히스토리 스냅샷 저장 (app_id 포함) ──────────────────────
+  const saveHistorySnapshot = async (p: any[], memo?: string) => {
+    try {
+      await supabase.from('gantt_history').insert({
+        data: { app_id: appId, projects: p },
+        memo: memo || '',
+      });
+    } catch {}
+  };
+
+  // ── beforeunload: 브라우저 종료 시 즉시 스냅샷 (fetch keepalive) ──
+  useEffect(() => {
+    const handleUnload = () => {
+      const snap = projectsRef.current;
+      if (!snap.length) return;
+      const body = JSON.stringify({
+        data: { app_id: appId, projects: snap },
+        memo: '브라우저 종료',
+      });
+      fetch(`${SUPABASE_URL}/rest/v1/gantt_history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'return=minimal',
+        },
+        body,
+        keepalive: true,
+      });
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [appId]);
+
   useEffect(() => {
     setProjects([]);
     load();
@@ -527,7 +565,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           toastTimer.current = setTimeout(() => setRealtimeToast(false), 2500);
         })
       .subscribe();
-    return () => { supabase.removeChannel(channel); if (toastTimer.current) clearTimeout(toastTimer.current); };
+    return () => {
+      supabase.removeChannel(channel);
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
   }, [appId]);
 
   const load = async () => {
@@ -539,10 +580,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     finally { setLoading(false); }
   };
 
-  const saveHistorySnapshot = async (p: any[], memo?: string) => {
-    try { await supabase.from('gantt_history').insert({ data: p, memo: memo || '' }); } catch {}
-  };
-
   const save = async (p: any[], memo?: string) => {
     setProjects(p); setSaving(true); isSavingRef.current = true;
     try { await supabase.from('gantt_projects').upsert({ id: appId, data: p }); } catch {}
@@ -551,25 +588,40 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     historyTimer.current = setTimeout(() => saveHistorySnapshot(p, memo), HISTORY_DEBOUNCE_MS);
   };
 
+  // ── 히스토리 조회 (현재 앱만 필터) ──────────────────────────
   const loadHistory = async () => {
     setHistoryLoading(true); setShowHistory(true);
     try {
-      const { data } = await supabase.from('gantt_history').select('id, saved_at, memo').order('saved_at', { ascending: false }).limit(50);
-      setHistory(data || []);
+      // data 컬럼도 함께 가져와서 app_id 필터링 (jsonb 컬럼은 .eq 불가)
+      const { data: raw } = await supabase
+        .from('gantt_history')
+        .select('id, saved_at, memo, data')
+        .order('saved_at', { ascending: false })
+        .limit(200);
+      // 현재 appId 것만, 최대 50개
+      const filtered = (raw || [])
+        .filter((h: any) => h.data?.app_id === appId)
+        .slice(0, 50);
+      setHistory(filtered);
     } catch {}
     finally { setHistoryLoading(false); }
   };
 
+  // ── 히스토리 복원 ────────────────────────────────────────────
   const restoreHistory = async (id: number) => {
     if (!confirm('이 시점으로 복원할까요?\n현재 데이터는 덮어쓰여집니다.')) return;
     setRestoring(true);
     try {
       const { data } = await supabase.from('gantt_history').select('data').eq('id', id).single();
       if (data) {
-        setProjects(data.data); setSaving(true);
-        try { await supabase.from('gantt_projects').upsert({ id: appId, data: data.data }); } catch {}
+        // 신버전: { app_id, projects }, 구버전(레거시): 배열 직접
+        const restoredProjects = Array.isArray(data.data)
+          ? data.data
+          : (data.data?.projects ?? []);
+        setProjects(restoredProjects); setSaving(true);
+        try { await supabase.from('gantt_projects').upsert({ id: appId, data: restoredProjects }); } catch {}
         finally { setSaving(false); }
-        await saveHistorySnapshot(data.data, '복원됨');
+        await saveHistorySnapshot(restoredProjects, '복원됨');
         setShowHistory(false); alert('복원 완료!');
       }
     } catch { alert('복원 중 오류가 발생했습니다.'); }
@@ -588,7 +640,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const toggleGroup    = (g: string) => setCollapsedGroups(prev => {
     const next = new Set(prev);
     if (next.has(g)) {
-      // 그룹 펼칠 때 → 해당 그룹 프로젝트 모두 접기
       next.delete(g);
       setProjects(ps => ps.map(p => (p.group||'미분류') === g ? {...p, expanded:false} : p));
     } else {
@@ -708,13 +759,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       else proj.tasks.forEach((t: any) => rows.push([...base, t.name, t.description||'', t.assignee||'', t.subAssignee||'', t.startDate||'', t.endDate||'', `${t.progress||0}%`]));
     });
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    // 헤더 행 볼드
     const range = XLSX.utils.decode_range(ws['!ref']||'A1');
     for (let c = range.s.c; c <= range.e.c; c++) {
       const cell = ws[XLSX.utils.encode_cell({r:0, c})];
       if (cell) cell.s = { font: { bold: true }, fill: { fgColor: { rgb: 'EFF6FF' } }, alignment: { horizontal: 'center' } };
     }
-    // 컬럼 너비 자동조정
     ws['!cols'] = headers.map((h, i) => {
       const maxLen = Math.max(h.length, ...rows.map(r => String(r[i]||'').length));
       return { wch: Math.min(Math.max(maxLen + 2, 10), 40) };
@@ -738,14 +787,12 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
         const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
         if (rows.length < 2) { setUploadError('데이터가 없습니다.'); return; }
         const header = rows[0] as string[];
-        // 헤더 인덱스 매핑
         const hi = (name: string) => header.findIndex(h => String(h).trim() === name);
         const iGrp=hi('그룹'), iCat=hi('카테고리'), iProj=hi('프로젝트'), iOwn=hi('오너(정)'), iSub=hi('부오너(부)');
         const iPSD=hi('프로젝트 시작일'), iPED=hi('프로젝트 종료일'), iPProg=hi('프로젝트 진행률'), iPDesc=hi('프로젝트 설명');
         const iTask=hi('Task'), iTDesc=hi('Task 설명'), iAss=hi('담당자(정)'), iSAss=hi('부담당자(부)');
         const iTSD=hi('Task 시작일'), iTED=hi('Task 종료일'), iTProg=hi('Task 진행률');
         if (iProj === -1) { setUploadError('헤더 형식이 맞지 않습니다. Excel 다운로드 양식을 사용해주세요.'); return; }
-        // 프로젝트별로 그룹핑
         const projMap: Record<string, any> = {};
         const projOrder: string[] = [];
         for (let i = 1; i < rows.length; i++) {
@@ -806,7 +853,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const modalW = Math.min(500, Math.max(320, window.innerWidth * 0.9));
   const inp = (extra={}) => ({width:'100%',border:'1px solid #d1d5db',borderRadius:8,padding:'8px 12px',fontSize:14,boxSizing:'border-box' as const,...extra});
 
-  // ── 설명 툴팁용 공통 스타일 ───────────────────────────────────
   const descLineStyle: React.CSSProperties = {
     fontSize: 12,
     color: '#6b7280',
@@ -964,7 +1010,12 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:16}} onClick={()=>setShowHistory(false)}>
       <div style={{background:'white',borderRadius:12,padding:24,width:Math.min(480, window.innerWidth*0.95),maxHeight:'75vh',display:'flex',flexDirection:'column',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}} onClick={e=>e.stopPropagation()}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexShrink:0}}>
-          <div><h3 style={{margin:0,fontSize:18,fontWeight:'bold'}}>🕐 저장 히스토리</h3><p style={{margin:'4px 0 0',fontSize:12,color:'#9ca3af'}}>최근 50개 스냅샷</p></div>
+          <div>
+            <h3 style={{margin:0,fontSize:18,fontWeight:'bold'}}>🕐 저장 히스토리</h3>
+            <p style={{margin:'4px 0 0',fontSize:12,color:'#9ca3af'}}>
+              {APP_CONFIG[appId].csvPrefix} · 최근 50개 스냅샷
+            </p>
+          </div>
           <button onClick={()=>setShowHistory(false)} style={{border:'none',background:'none',cursor:'pointer',fontSize:20,color:'#9ca3af',flexShrink:0}}>✕</button>
         </div>
         <div style={{overflowY:'auto',flex:1}}>
@@ -1400,7 +1451,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             <span style={{fontSize:12,color:'#94a3b8'}}>⠿ 드래그로 순서 변경 | 바 드래그로 일정 조정 | 그룹명 더블클릭 이름 변경</span>
           </div>
           <div style={{flex:1}}/>
-          {/* 모두접기/펴기 */}
           <div style={{display:'flex',gap:4}}>
             <button onClick={expandAll} style={{height:26,padding:'0 10px',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:6,cursor:'pointer',fontSize:11,color:'#a5b4fc',fontWeight:600}}>전체펴기</button>
             <button onClick={collapseAll} style={{height:26,padding:'0 10px',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:6,cursor:'pointer',fontSize:11,color:'#a5b4fc',fontWeight:600}}>전체접기</button>
@@ -1519,9 +1569,12 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                       <button onClick={()=>toggleGroup(group.name)} style={{border:'none',background:'none',cursor:'pointer',padding:'4px 6px',fontSize:10,color:'#6366f1',lineHeight:1}}>▼</button>
                     </div>)
                   ) : (
-                    <div style={{width:LEFT_COL,minWidth:LEFT_COL,flexShrink:0,display:'flex',alignItems:'center',
-                      padding:'8px 12px',gap:8,
-                      borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:8,background:'#f0f4ff',borderLeft:'4px solid #6366f1',overflow:'hidden'}}>
+                    <div style={{
+                      width:LEFT_COL, minWidth:LEFT_COL, flexShrink:0, display:'flex', alignItems:'center',
+                      padding:'8px 12px', gap:8,
+                      borderRight:'1px solid #e5e7eb', position:'sticky', left:0, zIndex:8,
+                      background:'#f0f4ff', borderLeft:'4px solid #6366f1', overflow:'hidden',
+                    }}>
                       <span style={{fontSize:14,color:'#9ca3af',cursor:'grab',userSelect:'none',padding:'0 2px'}}>⠿</span>
                       <button onClick={()=>toggleGroup(group.name)} style={{border:'none',background:'none',cursor:'pointer',padding:2,fontSize:13,color:'#6366f1'}}>{collapsedGroups.has(group.name)?'▶':'▼'}</button>
                       <span style={{fontSize:15,color:'#6366f1'}}>📁</span>
@@ -1581,12 +1634,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   const catColor=CATEGORY_COLORS[proj.category];
                   const collapsedMinH=calcCollapsedMinH(proj);
 
-                  // ─────────────────────────────────────────────────────
-                  // 행 전체 minHeight 계산
-                  // - compact: 32px 고정
-                  // - 펼침 또는 task 없음: 설명 있으면 66, 없으면 52
-                  // - 접힘(task 있음): collapsedMinH 기준, 설명 있으면 +18
-                  // ─────────────────────────────────────────────────────
                   const projRowMinH = isCompactUI
                     ? 32
                     : (proj.expanded || proj.tasks.length === 0)
@@ -1605,9 +1652,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                             <button onClick={()=>toggleProject(proj.id)} style={{border:'none',background:'none',cursor:'pointer',padding:'4px 6px',fontSize:10,color:catColor?catColor.border:c.text,lineHeight:1}}>{proj.expanded?'▼':'▶'}</button>
                           </div>
                         ) : (
-                          // ─────────────────────────────────────────────
-                          // 프로젝트: └ 들여쓰기 + 제목 pill 배경
-                          // ─────────────────────────────────────────────
                           <div style={{
                             width:LEFT_COL, minWidth:LEFT_COL, flexShrink:0,
                             display:'flex', alignItems:'flex-start',
@@ -1624,7 +1668,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                               <span style={{color:catColor?catColor.border:c.text,fontSize:13}}>{proj.expanded?'▼':'▶'}</span>
                             </button>
                             <div style={{flex:1,minWidth:0,overflow:'hidden'}}>
-                              {/* 프로젝트명 - 볼드 + 카테고리 글자색 */}
                               <div style={{overflow:'hidden',marginBottom:0}}>
                                 <span style={{
                                   fontWeight:700, fontSize:14,
@@ -1635,7 +1678,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                                   {proj.name}
                                 </span>
                               </div>
-                              {/* 설명 1줄 */}
                               {proj.description && (
                                 <div
                                   style={descLineStyle}
@@ -1703,11 +1745,9 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                                 </div>
                               );
                             }
-                            // PC: lane-packed task bars
                             const validTasks=proj.tasks.filter((t:any)=>t.startDate&&t.endDate); const laned=assignLanes(validTasks); const laneCount=calcLaneCount(laned); const totalH=laneCount*(TASK_ROW_H+TASK_GAP)-TASK_GAP; const containerH=projRowMinH; const topBase=(containerH-totalH)/2;
                             return laned.map(({task,lane,pos:tpos})=>{
                               if(!tpos)return null;
-                              // [수정2] Task 바 색상: Task 카테고리 우선, 없으면 프로젝트 색상
                               const taskCatColor=CATEGORY_COLORS[task.category];
                               const tc=COLOR_MAP[proj.color]||COLOR_MAP.blue;
                               const barBg=taskCatColor?taskCatColor.border:tc.bar;
@@ -1728,14 +1768,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                       {proj.expanded && proj.tasks.map((task:any)=>{
                         if (!proj.expanded) return null;
                         const pos=getPos(task.startDate,task.endDate); const isDrag=dragging?.pid===proj.id&&dragging?.tid===task.id;
-
-                        // [수정2] Task 바 색상 (펼친 상태)
                         const taskCatColor=CATEGORY_COLORS[task.category];
                         const tc=COLOR_MAP[proj.color]||COLOR_MAP.blue;
                         const taskBarBg=taskCatColor?taskCatColor.border:tc.bar;
                         const taskBarBgLight=taskCatColor?taskCatColor.bg:tc.barLight;
-
-                        // [수정3] Task 설명 있을 때 행 높이
                         const taskRowMinH = !isCompactUI && task.description ? 52 : (isCompactUI ? 32 : 40);
 
                         return (
@@ -1748,21 +1784,16 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                                 <span style={{fontSize:8,color:'#c4b5fd',lineHeight:1}}>└</span>
                               </div>
                             ) : (
-                              // ─────────────────────────────────────────
-                              // [수정3] Task 설명 1줄 추가
-                              // ─────────────────────────────────────────
                               <div style={{width:LEFT_COL,minWidth:LEFT_COL,flexShrink:0,display:'flex',alignItems:'center',
                                 padding:'6px 12px',borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:8,background:'white',overflow:'hidden'}}>
                                 <div style={{paddingLeft:48,display:'flex',alignItems:'center',gap:8,width:'100%',overflow:'hidden'}}>
                                   <span style={{fontSize:12,color:'#c4b5fd',flexShrink:0,userSelect:'none'}}>└</span>
                                   <span style={{fontSize:14,color:'#d1d5db',cursor:'grab',userSelect:'none',flexShrink:0}}>⠿</span>
                                   <div style={{flex:1,minWidth:0,overflow:'hidden'}}>
-                                    {/* Task 이름 */}
                                     <div style={{display:'flex',alignItems:'center',gap:4,overflow:'hidden'}}>
                                       {task.category && CATEGORY_COLORS[task.category] && (()=>{const cc=CATEGORY_COLORS[task.category];return <span style={{fontSize:9,padding:'1px 4px',borderRadius:4,background:cc.bg,color:cc.text,border:`1px solid ${cc.border}`,fontWeight:700,flexShrink:0,whiteSpace:'nowrap',lineHeight:1.4}}>{task.category}</span>;})()}
                                       <span style={{fontSize:12,color:'#1f2937',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,minWidth:0,lineHeight:1.2}}>{task.name}</span>
                                     </div>
-                                    {/* Task 설명 1줄 */}
                                     {task.description && (
                                       <div
                                         style={descLineStyle}
@@ -1798,7 +1829,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                               )}
                               {pos && (
                                 <div style={{position:'absolute',left:pos.left,width:pos.width,height:22,top:'50%',transform:'translateY(-50%)',
-                                  background:isCompactUI ? taskBarBgLight : taskBarBgLight,
+                                  background:taskBarBgLight,
                                   borderRadius:4,border:`1px solid ${taskBarBg}55`,cursor:'grab',zIndex:6,overflow:'visible'}}
                                   onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'move')} onMouseEnter={e=>{if(tooltipTimer.current)clearTimeout(tooltipTimer.current);tooltipTimer.current=setTimeout(()=>{setTooltip({name:task.name,startDate:task.startDate,endDate:task.endDate});setTooltipPos({x:e.clientX,y:e.clientY});},isCompactUI?0:80);}} onMouseMove={e=>setTooltipPos({x:e.clientX,y:e.clientY})} onMouseLeave={()=>{if(tooltipTimer.current)clearTimeout(tooltipTimer.current);if(!isDrag)setTooltip(null);}} onTouchStart={e=>{e.stopPropagation();const t=e.touches[0];if(tooltipTimer.current)clearTimeout(tooltipTimer.current);setTooltip({name:task.name,startDate:task.startDate,endDate:task.endDate});setTooltipPos({x:t.clientX,y:t.clientY});}} onTouchEnd={e=>{e.stopPropagation();if(isCompactUI){setTooltip(null);setEditingTask({task,pid:proj.id});}else{setTimeout(()=>setTooltip(null),1500);}}}>
                                   <div style={{position:'absolute',left:0,top:0,bottom:0,width:8,cursor:'ew-resize',zIndex:8,borderRadius:'5px 0 0 5px'}} onMouseDown={e=>handleMouseDown(e,proj.id,task.id,'start')} />
