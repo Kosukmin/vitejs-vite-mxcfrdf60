@@ -951,6 +951,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const TaskEditModal = ({ task, pid, onClose }: any) => {
   const [fd, setFd] = useState({...task});
+  void pid; // 타입 에러 방지
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:50}}>
       <div style={{background:'white',padding:20,margin:20,borderRadius:12}}>
