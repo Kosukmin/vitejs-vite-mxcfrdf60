@@ -846,6 +846,13 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     WebkitAppearance:'none' as any, appearance:'none' as any,
     display:'block',
   });
+  // iOS PWA에서 fixed 모달 내 input 키보드 강제 호출
+  const iosFocus = (e: React.TouchEvent<HTMLInputElement|HTMLTextAreaElement>) => {
+    const el = e.currentTarget;
+    el.focus();
+    // iOS가 focus를 무시할 때를 대비해 약간 지연 후 재시도
+    setTimeout(() => el.focus(), 50);
+  };
 
   const descLineStyle: React.CSSProperties = {
     fontSize: 12,
@@ -884,18 +891,20 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     const [fd, setFd] = useState({...proj});
     const overlayRef = React.useRef<HTMLDivElement>(null);
     React.useEffect(() => {
-      const el = overlayRef.current;
-      if (!el) return;
-      const prevent = (e: TouchEvent) => {
-        const tag = (e.target as HTMLElement).tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-        e.preventDefault();
+      // iOS PWA 키보드 호환: touchmove 차단 제거, 스크롤 위치만 고정
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
       };
-      el.addEventListener('touchmove', prevent, { passive: false });
-      return () => el.removeEventListener('touchmove', prevent);
     }, []);
     return (
-      <div ref={overlayRef} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
         <div style={{background:'white',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:560,maxHeight:'92dvh',display:'flex',flexDirection:'column',boxShadow:'0 -4px 32px rgba(0,0,0,0.25)',touchAction:'pan-y'}} onClick={e=>e.stopPropagation()}>
           {/* 핸들 + 헤더 고정 */}
           <div style={{padding:'16px 20px 0',flexShrink:0}}>
@@ -908,10 +917,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           {/* 스크롤 영역 */}
           <div style={{overflowY:'auto',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
             <div style={{display:'flex',flexDirection:'column',gap:16,paddingBottom:8}}>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>프로젝트 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} /></div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>프로젝트 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (정)</label><input value={fd.owner||''} onChange={e=>setFd({...fd,owner:e.target.value})} style={inp()} /></div>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (부)</label><input value={fd.subOwner||''} onChange={e=>setFd({...fd,subOwner:e.target.value})} style={inp()} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (정)</label><input value={fd.owner||''} onChange={e=>setFd({...fd,owner:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (부)</label><input value={fd.subOwner||''} onChange={e=>setFd({...fd,subOwner:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
               </div>
               <div>
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>그룹</label>
@@ -923,7 +932,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   <button type="button" onClick={()=>setFd({...fd,group:''})}
                     style={{padding:'6px 14px',borderRadius:20,fontSize:13,cursor:'pointer',fontWeight:fd.group===''||fd.group==='미분류'?600:400,border:fd.group===''||fd.group==='미분류'?'2px solid #9ca3af':'2px solid #e5e7eb',background:fd.group===''||fd.group==='미분류'?'#f3f4f6':'white',color:'#6b7280'}}>미분류</button>
                 </div>
-                <input value={(!allGroups.filter(g=>g!=='미분류').includes(fd.group) && fd.group && fd.group!=='미분류') ? fd.group : ''} onChange={e=>setFd({...fd,group:e.target.value})} placeholder="+ 새 그룹 직접 입력" style={{...inp(),fontSize:13}} />
+                <input value={(!allGroups.filter(g=>g!=='미분류').includes(fd.group) && fd.group && fd.group!=='미분류') ? fd.group : ''} onChange={e=>setFd({...fd,group:e.target.value})} placeholder="+ 새 그룹 직접 입력" style={{...inp(),fontSize:13}} onTouchEnd={iosFocus as any} />
               </div>
               <div>
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>카테고리</label>
@@ -936,11 +945,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 <div style={{display:'flex',flexDirection:'column',gap:10}}>
                   <div>
                     <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>시작일</label>
-                    <input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} />
+                    <input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} onTouchEnd={iosFocus as any} />
                   </div>
                   <div>
                     <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>종료일</label>
-                    <input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} />
+                    <input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} onTouchEnd={iosFocus as any} />
                   </div>
                 </div>
               </div>
@@ -948,7 +957,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률 <span style={{color:'#3b82f6',fontWeight:'bold',marginLeft:8}}>{fd.progress||0}%</span></label>
                 <input type="range" min="0" max="100" value={fd.progress||0} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} />
               </div>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} /></div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} onTouchEnd={iosFocus as any} /></div>
             </div>
           </div>
           {/* 버튼 하단 고정 */}
@@ -963,20 +972,20 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const TaskEditModal = ({ task, pid, onClose }: any) => {
     const [fd, setFd] = useState({...task});
-    const overlayRef = React.useRef<HTMLDivElement>(null);
     React.useEffect(() => {
-      const el = overlayRef.current;
-      if (!el) return;
-      const prevent = (e: TouchEvent) => {
-        const tag = (e.target as HTMLElement).tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-        e.preventDefault();
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
       };
-      el.addEventListener('touchmove', prevent, { passive: false });
-      return () => el.removeEventListener('touchmove', prevent);
     }, []);
     return (
-      <div ref={overlayRef} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
         <div style={{background:'white',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:560,maxHeight:'92dvh',display:'flex',flexDirection:'column',boxShadow:'0 -4px 32px rgba(0,0,0,0.25)',touchAction:'pan-y'}} onClick={e=>e.stopPropagation()}>
           {/* 핸들 + 헤더 고정 */}
           <div style={{padding:'16px 20px 0',flexShrink:0}}>
@@ -989,7 +998,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           {/* 스크롤 영역 */}
           <div style={{overflowY:'auto',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
             <div style={{display:'flex',flexDirection:'column',gap:16,paddingBottom:8}}>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>Task 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} /></div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>Task 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
               <div>
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>카테고리</label>
                 <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
@@ -998,18 +1007,18 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (정)</label><input value={fd.assignee||''} onChange={e=>setFd({...fd,assignee:e.target.value})} style={inp()} /></div>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (부)</label><input value={fd.subAssignee||''} onChange={e=>setFd({...fd,subAssignee:e.target.value})} style={inp()} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (정)</label><input value={fd.assignee||''} onChange={e=>setFd({...fd,assignee:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (부)</label><input value={fd.subAssignee||''} onChange={e=>setFd({...fd,subAssignee:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
               </div>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} /></div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} onTouchEnd={iosFocus as any} /></div>
               <div style={{display:'flex',flexDirection:'column',gap:10}}>
                 <div>
                   <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>시작일</label>
-                  <input type="date" value={fd.startDate} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} />
+                  <input type="date" value={fd.startDate} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} onTouchEnd={iosFocus as any} />
                 </div>
                 <div>
                   <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>종료일</label>
-                  <input type="date" value={fd.endDate} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} />
+                  <input type="date" value={fd.endDate} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} onTouchEnd={iosFocus as any} />
                 </div>
               </div>
               <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률: <span style={{color:'#3b82f6',fontWeight:'bold'}}>{fd.progress}%</span></label><input type="range" min="0" max="100" value={fd.progress} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} /></div>
