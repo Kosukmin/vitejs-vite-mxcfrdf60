@@ -613,7 +613,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const collapseAll    = () => { setCollapsedGroups(new Set(allGroups)); setProjects(projects.map(p => ({...p, expanded:false}))); };
   const expandAll      = () => { setCollapsedGroups(new Set()); setProjects(projects.map(p => ({...p, expanded:true}))); };
   const updateTask     = (pid: number, tid: number, upd: any) => save(projects.map(p => p.id!==pid ? p : {...p, tasks:p.tasks.map((t:any)=>t.id!==tid?t:{...t,...upd})}));
-void updateTask;
   const deleteTask     = (pid: number, tid: number) => save(projects.map(p => p.id!==pid ? p : {...p, tasks:p.tasks.filter((t:any)=>t.id!==tid)}));
   const deleteProject  = (pid: number) => save(projects.filter(p => p.id!==pid));
   const updateProject  = (pid: number, upd: any) => save(projects.map(p => p.id!==pid ? p : {...p,...upd}));
@@ -840,13 +839,7 @@ void updateTask;
     display:'block',
   });
 
-  // ── iOS PWA 키보드 강제 호출 (touchstart + rAF 조합) ──────────
-  const iosFocus = (e: React.TouchEvent<any>) => {
-    const el = e.currentTarget as HTMLInputElement | HTMLTextAreaElement;
-    e.preventDefault();
-    el.focus();
-    requestAnimationFrame(() => el.focus());
-  };
+  // iosFocus 제거됨 — useEffect + ref 방식으로 대체
 
   const descLineStyle: React.CSSProperties = {
     fontSize: 12,
@@ -883,10 +876,14 @@ void updateTask;
 
   const ProjectEditModal = ({ proj, onClose }: any) => {
     const [fd, setFd] = useState({...proj});
+    const firstInputRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+      const t = setTimeout(() => { firstInputRef.current?.focus(); }, 150);
+      return () => clearTimeout(t);
+    }, []);
     return (
-      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50,WebkitOverflowScrolling:'touch' as any}} onClick={onClose}>
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
         <div style={{background:'white',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:560,maxHeight:'92dvh',display:'flex',flexDirection:'column',boxShadow:'0 -4px 32px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
-          {/* 핸들 + 헤더 고정 */}
           <div style={{padding:'16px 20px 0',flexShrink:0}}>
             <div style={{width:40,height:4,borderRadius:2,background:'#e5e7eb',margin:'0 auto 16px'}}/>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
@@ -894,13 +891,12 @@ void updateTask;
               <button onClick={onClose} style={{border:'none',background:'#f3f4f6',cursor:'pointer',fontSize:18,color:'#374151',width:36,height:36,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>✕</button>
             </div>
           </div>
-          {/* 스크롤 영역 */}
-          <div style={{overflowY:'scroll',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
+          <div style={{overflowY:'auto',flex:1,padding:'0 20px'}}>
             <div style={{display:'flex',flexDirection:'column',gap:16,paddingBottom:8}}>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>프로젝트 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} onTouchStart={iosFocus as any} /></div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>프로젝트 이름</label><input ref={firstInputRef} value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} /></div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (정)</label><input value={fd.owner||''} onChange={e=>setFd({...fd,owner:e.target.value})} style={inp()} onTouchStart={iosFocus as any} /></div>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (부)</label><input value={fd.subOwner||''} onChange={e=>setFd({...fd,subOwner:e.target.value})} style={inp()} onTouchStart={iosFocus as any} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (정)</label><input value={fd.owner||''} onChange={e=>setFd({...fd,owner:e.target.value})} style={inp()} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (부)</label><input value={fd.subOwner||''} onChange={e=>setFd({...fd,subOwner:e.target.value})} style={inp()} /></div>
               </div>
               <div>
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>그룹</label>
@@ -912,7 +908,7 @@ void updateTask;
                   <button type="button" onClick={()=>setFd({...fd,group:''})}
                     style={{padding:'6px 14px',borderRadius:20,fontSize:13,cursor:'pointer',fontWeight:fd.group===''||fd.group==='미분류'?600:400,border:fd.group===''||fd.group==='미분류'?'2px solid #9ca3af':'2px solid #e5e7eb',background:fd.group===''||fd.group==='미분류'?'#f3f4f6':'white',color:'#6b7280'}}>미분류</button>
                 </div>
-                <input value={(!allGroups.filter(g=>g!=='미분류').includes(fd.group) && fd.group && fd.group!=='미분류') ? fd.group : ''} onChange={e=>setFd({...fd,group:e.target.value})} placeholder="+ 새 그룹 직접 입력" style={{...inp(),fontSize:13}} onTouchStart={iosFocus as any} />
+                <input value={(!allGroups.filter(g=>g!=='미분류').includes(fd.group) && fd.group && fd.group!=='미분류') ? fd.group : ''} onChange={e=>setFd({...fd,group:e.target.value})} placeholder="+ 새 그룹 직접 입력" style={{...inp(),fontSize:13}} />
               </div>
               <div>
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>카테고리</label>
@@ -925,11 +921,11 @@ void updateTask;
                 <div style={{display:'flex',flexDirection:'column',gap:10}}>
                   <div>
                     <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>시작일</label>
-                    <input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} onTouchStart={iosFocus as any} />
+                    <input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} />
                   </div>
                   <div>
                     <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>종료일</label>
-                    <input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} onTouchStart={iosFocus as any} />
+                    <input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} />
                   </div>
                 </div>
               </div>
@@ -937,11 +933,10 @@ void updateTask;
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률 <span style={{color:'#3b82f6',fontWeight:'bold',marginLeft:8}}>{fd.progress||0}%</span></label>
                 <input type="range" min="0" max="100" value={fd.progress||0} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} />
               </div>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} onTouchStart={iosFocus as any} /></div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} /></div>
             </div>
           </div>
-          {/* 버튼 하단 고정 */}
-          <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'16px 20px',borderTop:'1px solid #f1f5f9',flexShrink:0,background:'white',borderRadius:'0 0 0 0'}}>
+          <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'16px 20px',borderTop:'1px solid #f1f5f9',flexShrink:0,background:'white'}}>
             <button onClick={onClose} style={{padding:'12px 24px',border:'1px solid #d1d5db',borderRadius:10,background:'white',cursor:'pointer',fontSize:15,fontWeight:500}}>취소</button>
             <button onClick={()=>{updateProject(proj.id,fd);onClose();}} style={{padding:'12px 24px',border:'none',borderRadius:10,background:'#3b82f6',color:'white',cursor:'pointer',fontSize:15,fontWeight:600}}>저장</button>
           </div>
@@ -951,22 +946,60 @@ void updateTask;
   };
 
   const TaskEditModal = ({ task, pid, onClose }: any) => {
-  const [fd, setFd] = useState({...task});
-  void pid; // 타입 에러 방지
-  return (
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:50}}>
-      <div style={{background:'white',padding:20,margin:20,borderRadius:12}}>
-        <input 
-          type="text"
-          value={fd.name}
-          onChange={e=>setFd({...fd,name:e.target.value})}
-          style={{width:'100%',fontSize:16,padding:12,border:'1px solid #ccc',borderRadius:8}}
-        />
-        <button onClick={onClose} style={{marginTop:12,padding:'8px 20px'}}>닫기</button>
+    const [fd, setFd] = useState({...task});
+    const firstInputRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+      const t = setTimeout(() => { firstInputRef.current?.focus(); }, 150);
+      return () => clearTimeout(t);
+    }, []);
+    return (
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
+        <div style={{background:'white',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:560,maxHeight:'92dvh',display:'flex',flexDirection:'column',boxShadow:'0 -4px 32px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
+          <div style={{padding:'16px 20px 0',flexShrink:0}}>
+            <div style={{width:40,height:4,borderRadius:2,background:'#e5e7eb',margin:'0 auto 16px'}}/>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <h3 style={{fontSize:18,fontWeight:'bold',margin:0}}>Task 편집</h3>
+              <button onClick={onClose} style={{border:'none',background:'#f3f4f6',cursor:'pointer',fontSize:18,color:'#374151',width:36,height:36,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>✕</button>
+            </div>
+          </div>
+          <div style={{overflowY:'auto',flex:1,padding:'0 20px'}}>
+            <div style={{display:'flex',flexDirection:'column',gap:16,paddingBottom:8}}>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>Task 이름</label><input ref={firstInputRef} value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} /></div>
+              <div>
+                <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>카테고리</label>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  <button onClick={()=>setFd({...fd,category:''})} style={{padding:'6px 14px',borderRadius:20,border:`2px solid ${!fd.category?'#6b7280':'#e5e7eb'}`,background:!fd.category?'#f3f4f6':'white',color:!fd.category?'#374151':'#9ca3af',cursor:'pointer',fontSize:13,fontWeight:!fd.category?600:400}}>없음</button>
+                  {CATEGORIES.map(cat=>{ const cc=CATEGORY_COLORS[cat]; return <button key={cat} onClick={()=>setFd({...fd,category:cat})} style={{padding:'6px 14px',borderRadius:20,border:`2px solid ${fd.category===cat?cc.border:'#e5e7eb'}`,background:fd.category===cat?cc.bg:'white',color:fd.category===cat?cc.text:'#6b7280',cursor:'pointer',fontSize:13,fontWeight:fd.category===cat?600:400}}>{cat}</button>; })}
+                </div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (정)</label><input value={fd.assignee||''} onChange={e=>setFd({...fd,assignee:e.target.value})} style={inp()} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (부)</label><input value={fd.subAssignee||''} onChange={e=>setFd({...fd,subAssignee:e.target.value})} style={inp()} /></div>
+              </div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} /></div>
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                <div>
+                  <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>시작일</label>
+                  <input type="date" value={fd.startDate} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} />
+                </div>
+                <div>
+                  <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>종료일</label>
+                  <input type="date" value={fd.endDate} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} />
+                </div>
+              </div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률: <span style={{color:'#3b82f6',fontWeight:'bold'}}>{fd.progress}%</span></label><input type="range" min="0" max="100" value={fd.progress} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} /></div>
+            </div>
+          </div>
+          <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'16px 20px',borderTop:'1px solid #f1f5f9',flexShrink:0,background:'white'}}>
+            <button onClick={onClose} style={{padding:'12px 24px',border:'1px solid #d1d5db',borderRadius:10,background:'white',cursor:'pointer',fontSize:15,fontWeight:500}}>취소</button>
+            <button onClick={()=>{updateTask(pid,task.id,fd);onClose();}} style={{padding:'12px 24px',border:'none',borderRadius:10,background:'#3b82f6',color:'white',cursor:'pointer',fontSize:15,fontWeight:600}}>저장</button>
+          </div>
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
+
+  const ChangePwModal
 
   const ChangePwModal = () => {
     const [currentPw, setCurrentPw] = useState('');
