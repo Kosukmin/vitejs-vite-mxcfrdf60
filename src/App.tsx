@@ -837,12 +837,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const today = new Date();
   const todayLeft = today>=V_START && today<=V_END ? Math.round((today.getTime()-V_START.getTime())/86400000/V_TOTAL_DAYS*TIMELINE_W) : null;
-  const inp = (extra={}) => ({width:'100%',maxWidth:'100%',border:'1px solid #d1d5db',borderRadius:8,padding:'8px 12px',fontSize:14,boxSizing:'border-box' as const,...extra});
-  // iOS에서 date input 잘림 방지 전용 스타일
+  const inp = (extra={}) => ({width:'100%',maxWidth:'100%',border:'1px solid #d1d5db',borderRadius:8,padding:'8px 12px',fontSize:16,boxSizing:'border-box' as const,...extra});
   const dateInp = () => ({
     width:'100%', maxWidth:'100%', boxSizing:'border-box' as const,
     border:'1px solid #e5e7eb', borderRadius:10,
-    padding:'13px 14px', fontSize:15, fontWeight:500,
+    padding:'13px 14px', fontSize:16, fontWeight:500,
     background:'#f8fafc', color:'#1e293b',
     WebkitAppearance:'none' as any, appearance:'none' as any,
     display:'block',
