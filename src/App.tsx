@@ -889,7 +889,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const ProjectEditModal = ({ proj, onClose }: any) => {
     const [fd, setFd] = useState({...proj});
-    const overlayRef = React.useRef<HTMLDivElement>(null);
     React.useEffect(() => {
       // iOS PWA 키보드 호환: touchmove 차단 제거, 스크롤 위치만 고정
       const scrollY = window.scrollY;
