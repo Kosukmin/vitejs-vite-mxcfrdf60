@@ -952,7 +952,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const TaskEditModal = ({ task, pid, onClose }: any) => {
     const [fd, setFd] = useState({...task});
     return (
-      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50,WebkitOverflowScrolling:'touch' as any}} onClick={onClose}>
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50,WebkitOverflowScrolling:'touch' as any}}>
         <div style={{background:'white',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:560,maxHeight:'92dvh',display:'flex',flexDirection:'column',boxShadow:'0 -4px 32px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
           {/* 핸들 + 헤더 고정 */}
           <div style={{padding:'16px 20px 0',flexShrink:0}}>
