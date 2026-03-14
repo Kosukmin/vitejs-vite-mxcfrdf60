@@ -963,7 +963,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             </div>
           </div>
           {/* 스크롤 영역 */}
-          <div style={{overflowY:'scroll',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
+          <div style={{overflowY:'auto',flex:1,padding:'0 20px'}}>
             <div style={{display:'flex',flexDirection:'column',gap:16,paddingBottom:8}}>
               <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>Task 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} onTouchStart={iosFocus as any} /></div>
               <div>
