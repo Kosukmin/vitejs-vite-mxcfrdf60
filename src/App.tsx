@@ -10,7 +10,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // half 제거, week → quarter, day → month(캘린더)
 type ViewMode = 'year'|'quarter'|'month';
 
-const WEEK_COL_W = 52;
 const DAY_COL_W  = 28;
 
 // ── 분기 정의 ─────────────────────────────────────────────────
@@ -1295,15 +1294,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   // 데스크탑 / 태블릿 가로 → 간트차트 뷰
   // ────────────────────────────────────────────────────────────
 
-  const getDayHeaderStyle = (h: typeof DAY_HEADERS[0]) => {
-    if (h.isHoliday || h.isSunday) return { color:'#ef4444', fontWeight: 500, bg:'#fff5f5' };
-    if (h.isSaturday) return { color:'#2563eb', fontWeight: 400, bg:'#eff6ff' };
-    if (h.isFirst)    return { color:'#1d4ed8', fontWeight: 600, bg:'#eff6ff' };
-    return { color:'#6b7280', fontWeight: 400, bg:'#f9fafb' };
-  };
-
   // ── 월 캘린더 뷰 컴포넌트 ────────────────────────────────────
-  const MonthCalendarView = ({ calMonth, setCalMonth, filtered, activeCategories, todayStr2, onEditTask }: any) => {
+  const MonthCalendarView = ({ calMonth, setCalMonth, filtered, todayStr2, onEditTask }: any) => {
     // ── 로컬 tooltip (부모 리렌더 차단) ─────────────────────────
     const [localTooltip, setLocalTooltip] = React.useState<any>(null);
     const [localTooltipPos, setLocalTooltipPos] = React.useState({ x:0, y:0 });
@@ -1891,7 +1883,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
         calMonth={calMonth}
         setCalMonth={setCalMonth}
         filtered={filtered.filter((p: any) => p.category !== '영업')}
-        activeCategories={activeCategories}
         todayStr2={todayStr()}
         onEditTask={(task: any, pid: number) => setEditingTask({ task, pid })}
       />}
