@@ -864,9 +864,18 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const ProjectEditModal = ({ proj, onClose }: any) => {
     const [fd, setFd] = useState({...proj});
+    const overlayRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+      const el = overlayRef.current;
+      if (!el) return;
+      const prevent = (e: TouchEvent) => { if ((e.target as HTMLElement).closest('.modal-scroll')) return; e.preventDefault(); };
+      el.addEventListener('touchmove', prevent, { passive: false });
+      return () => el.removeEventListener('touchmove', prevent);
+    }, []);
     return (
-      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:16,overscrollBehavior:'none',WebkitOverflowScrolling:'touch' as any}}>
-        <div style={{background:'white',borderRadius:12,padding:24,width:modalW,boxShadow:'0 20px 60px rgba(0,0,0,0.3)',maxHeight:'calc(90dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+      <div ref={overlayRef} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
+        <div className="modal-scroll" style={{background:'white',borderRadius:'16px 16px 0 0',padding:'20px 20px 32px',width:'100%',maxWidth:560,maxHeight:'92dvh',overflowY:'auto',WebkitOverflowScrolling:'touch' as any,boxShadow:'0 -4px 32px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
+          <div style={{width:40,height:4,borderRadius:2,background:'#e5e7eb',margin:'0 auto 20px'}}/>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
             <h3 style={{fontSize:18,fontWeight:'bold',margin:0}}>프로젝트 편집</h3>
             <button onClick={onClose} style={{border:'none',background:'none',cursor:'pointer',fontSize:20,color:'#9ca3af'}}>✕</button>
@@ -896,10 +905,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               </div>
             </div>
             <div>
-              <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>프로젝트 기간</label>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                <div style={{minWidth:0}}><label style={{display:'block',fontSize:12,color:'#6b7280',marginBottom:4}}>시작일</label><input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={inp()} /></div>
-                <div style={{minWidth:0}}><label style={{display:'block',fontSize:12,color:'#6b7280',marginBottom:4}}>종료일</label><input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={inp()} /></div>
+              <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>프로젝트 기간</label>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                <div><label style={{display:'block',fontSize:12,color:'#6b7280',marginBottom:4}}>시작일</label><input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={inp()} /></div>
+                <div><label style={{display:'block',fontSize:12,color:'#6b7280',marginBottom:4}}>종료일</label><input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={inp()} /></div>
               </div>
             </div>
             <div>
@@ -909,8 +918,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} /></div>
           </div>
           <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:24}}>
-            <button onClick={onClose} style={{padding:'8px 16px',border:'1px solid #d1d5db',borderRadius:8,background:'white',cursor:'pointer',fontSize:14}}>취소</button>
-            <button onClick={()=>{updateProject(proj.id,fd);onClose();}} style={{padding:'8px 16px',border:'none',borderRadius:8,background:'#3b82f6',color:'white',cursor:'pointer',fontSize:14,fontWeight:500}}>저장</button>
+            <button onClick={onClose} style={{padding:'10px 20px',border:'1px solid #d1d5db',borderRadius:8,background:'white',cursor:'pointer',fontSize:14}}>취소</button>
+            <button onClick={()=>{updateProject(proj.id,fd);onClose();}} style={{padding:'10px 20px',border:'none',borderRadius:8,background:'#3b82f6',color:'white',cursor:'pointer',fontSize:14,fontWeight:500}}>저장</button>
           </div>
         </div>
       </div>
@@ -919,9 +928,18 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const TaskEditModal = ({ task, pid, onClose }: any) => {
     const [fd, setFd] = useState({...task});
+    const overlayRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+      const el = overlayRef.current;
+      if (!el) return;
+      const prevent = (e: TouchEvent) => { if ((e.target as HTMLElement).closest('.modal-scroll')) return; e.preventDefault(); };
+      el.addEventListener('touchmove', prevent, { passive: false });
+      return () => el.removeEventListener('touchmove', prevent);
+    }, []);
     return (
-      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:16,overscrollBehavior:'none',WebkitOverflowScrolling:'touch' as any}}>
-        <div style={{background:'white',borderRadius:12,padding:24,width:modalW,maxHeight:'calc(90dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}} onClick={e=>e.stopPropagation()}>
+      <div ref={overlayRef} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
+        <div className="modal-scroll" style={{background:'white',borderRadius:'16px 16px 0 0',padding:'20px 20px 32px',width:'100%',maxWidth:560,maxHeight:'92dvh',overflowY:'auto',WebkitOverflowScrolling:'touch' as any,boxShadow:'0 -4px 32px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
+          <div style={{width:40,height:4,borderRadius:2,background:'#e5e7eb',margin:'0 auto 20px'}}/>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
             <h3 style={{fontSize:18,fontWeight:'bold',margin:0}}>Task 편집</h3>
             <button onClick={onClose} style={{border:'none',background:'none',cursor:'pointer',fontSize:20,color:'#9ca3af'}}>✕</button>
@@ -940,15 +958,15 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (부)</label><input value={fd.subAssignee||''} onChange={e=>setFd({...fd,subAssignee:e.target.value})} style={inp()} /></div>
             </div>
             <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} /></div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
-              <div style={{minWidth:0}}><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>시작일</label><input type="date" value={fd.startDate} onChange={e=>setFd({...fd,startDate:e.target.value})} style={inp()} /></div>
-              <div style={{minWidth:0}}><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>종료일</label><input type="date" value={fd.endDate} onChange={e=>setFd({...fd,endDate:e.target.value})} style={inp()} /></div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>시작일</label><input type="date" value={fd.startDate} onChange={e=>setFd({...fd,startDate:e.target.value})} style={inp()} /></div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>종료일</label><input type="date" value={fd.endDate} onChange={e=>setFd({...fd,endDate:e.target.value})} style={inp()} /></div>
             </div>
             <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률: <span style={{color:'#3b82f6',fontWeight:'bold'}}>{fd.progress}%</span></label><input type="range" min="0" max="100" value={fd.progress} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} /></div>
           </div>
           <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:24}}>
-            <button onClick={onClose} style={{padding:'8px 16px',border:'1px solid #d1d5db',borderRadius:8,background:'white',cursor:'pointer',fontSize:14}}>취소</button>
-            <button onClick={()=>{updateTask(pid,task.id,fd);onClose();}} style={{padding:'8px 16px',border:'none',borderRadius:8,background:'#3b82f6',color:'white',cursor:'pointer',fontSize:14,fontWeight:500}}>저장</button>
+            <button onClick={onClose} style={{padding:'10px 20px',border:'1px solid #d1d5db',borderRadius:8,background:'white',cursor:'pointer',fontSize:14}}>취소</button>
+            <button onClick={()=>{updateTask(pid,task.id,fd);onClose();}} style={{padding:'10px 20px',border:'none',borderRadius:8,background:'#3b82f6',color:'white',cursor:'pointer',fontSize:14,fontWeight:500}}>저장</button>
           </div>
         </div>
       </div>
