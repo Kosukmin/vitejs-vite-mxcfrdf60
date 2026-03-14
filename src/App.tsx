@@ -999,8 +999,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     );
   };
 
-  const ChangePwModal
-
   const ChangePwModal = () => {
     const [currentPw, setCurrentPw] = useState('');
     const [newPw, setNewPw]         = useState('');
