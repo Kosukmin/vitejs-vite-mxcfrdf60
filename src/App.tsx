@@ -867,58 +867,65 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     React.useEffect(() => {
       const el = overlayRef.current;
       if (!el) return;
-      const prevent = (e: TouchEvent) => { if ((e.target as HTMLElement).closest('.modal-scroll')) return; e.preventDefault(); };
+      const prevent = (e: TouchEvent) => e.preventDefault();
       el.addEventListener('touchmove', prevent, { passive: false });
       return () => el.removeEventListener('touchmove', prevent);
     }, []);
     return (
       <div ref={overlayRef} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
-        <div className="modal-scroll" style={{background:'white',borderRadius:'16px 16px 0 0',padding:'20px 20px 32px',width:'100%',maxWidth:560,maxHeight:'92dvh',overflowY:'auto',WebkitOverflowScrolling:'touch' as any,boxShadow:'0 -4px 32px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
-          <div style={{width:40,height:4,borderRadius:2,background:'#e5e7eb',margin:'0 auto 20px'}}/>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-            <h3 style={{fontSize:18,fontWeight:'bold',margin:0}}>프로젝트 편집</h3>
-            <button onClick={onClose} style={{border:'none',background:'none',cursor:'pointer',fontSize:20,color:'#9ca3af'}}>✕</button>
+        <div style={{background:'white',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:560,maxHeight:'92dvh',display:'flex',flexDirection:'column',boxShadow:'0 -4px 32px rgba(0,0,0,0.25)',touchAction:'pan-y'}} onClick={e=>e.stopPropagation()}>
+          {/* 핸들 + 헤더 고정 */}
+          <div style={{padding:'16px 20px 0',flexShrink:0}}>
+            <div style={{width:40,height:4,borderRadius:2,background:'#e5e7eb',margin:'0 auto 16px'}}/>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <h3 style={{fontSize:18,fontWeight:'bold',margin:0}}>프로젝트 편집</h3>
+              <button onClick={onClose} style={{border:'none',background:'#f3f4f6',cursor:'pointer',fontSize:18,color:'#374151',width:36,height:36,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>✕</button>
+            </div>
           </div>
-          <div style={{display:'flex',flexDirection:'column',gap:16}}>
-            <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>프로젝트 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} /></div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (정)</label><input value={fd.owner||''} onChange={e=>setFd({...fd,owner:e.target.value})} style={inp()} /></div>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (부)</label><input value={fd.subOwner||''} onChange={e=>setFd({...fd,subOwner:e.target.value})} style={inp()} /></div>
-            </div>
-            <div>
-              <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>그룹</label>
-              <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
-                {allGroups.filter(g=>g!=='미분류').map(g=>(
-                  <button key={g} type="button" onClick={()=>setFd({...fd,group:g})}
-                    style={{padding:'6px 14px',borderRadius:20,fontSize:13,cursor:'pointer',fontWeight:fd.group===g?600:400,border:fd.group===g?'2px solid #6366f1':'2px solid #e5e7eb',background:fd.group===g?'#eef2ff':'white',color:fd.group===g?'#4338ca':'#6b7280'}}>{g}</button>
-                ))}
-                <button type="button" onClick={()=>setFd({...fd,group:''})}
-                  style={{padding:'6px 14px',borderRadius:20,fontSize:13,cursor:'pointer',fontWeight:fd.group===''||fd.group==='미분류'?600:400,border:fd.group===''||fd.group==='미분류'?'2px solid #9ca3af':'2px solid #e5e7eb',background:fd.group===''||fd.group==='미분류'?'#f3f4f6':'white',color:'#6b7280'}}>미분류</button>
+          {/* 스크롤 영역 */}
+          <div style={{overflowY:'auto',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
+            <div style={{display:'flex',flexDirection:'column',gap:16,paddingBottom:8}}>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>프로젝트 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} /></div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (정)</label><input value={fd.owner||''} onChange={e=>setFd({...fd,owner:e.target.value})} style={inp()} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (부)</label><input value={fd.subOwner||''} onChange={e=>setFd({...fd,subOwner:e.target.value})} style={inp()} /></div>
               </div>
-              <input value={(!allGroups.filter(g=>g!=='미분류').includes(fd.group) && fd.group && fd.group!=='미분류') ? fd.group : ''} onChange={e=>setFd({...fd,group:e.target.value})} placeholder="+ 새 그룹 직접 입력" style={{...inp(),fontSize:13}} />
-            </div>
-            <div>
-              <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>카테고리</label>
-              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                {CATEGORIES.map(cat=>{ const cc=CATEGORY_COLORS[cat]; return <button key={cat} onClick={()=>setFd({...fd,category:cat})} style={{padding:'6px 16px',borderRadius:20,border:`2px solid ${fd.category===cat?cc.border:'#e5e7eb'}`,background:fd.category===cat?cc.bg:'white',color:fd.category===cat?cc.text:'#6b7280',cursor:'pointer',fontSize:13,fontWeight:fd.category===cat?600:400}}>{cat}</button>; })}
+              <div>
+                <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>그룹</label>
+                <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
+                  {allGroups.filter(g=>g!=='미분류').map(g=>(
+                    <button key={g} type="button" onClick={()=>setFd({...fd,group:g})}
+                      style={{padding:'6px 14px',borderRadius:20,fontSize:13,cursor:'pointer',fontWeight:fd.group===g?600:400,border:fd.group===g?'2px solid #6366f1':'2px solid #e5e7eb',background:fd.group===g?'#eef2ff':'white',color:fd.group===g?'#4338ca':'#6b7280'}}>{g}</button>
+                  ))}
+                  <button type="button" onClick={()=>setFd({...fd,group:''})}
+                    style={{padding:'6px 14px',borderRadius:20,fontSize:13,cursor:'pointer',fontWeight:fd.group===''||fd.group==='미분류'?600:400,border:fd.group===''||fd.group==='미분류'?'2px solid #9ca3af':'2px solid #e5e7eb',background:fd.group===''||fd.group==='미분류'?'#f3f4f6':'white',color:'#6b7280'}}>미분류</button>
+                </div>
+                <input value={(!allGroups.filter(g=>g!=='미분류').includes(fd.group) && fd.group && fd.group!=='미분류') ? fd.group : ''} onChange={e=>setFd({...fd,group:e.target.value})} placeholder="+ 새 그룹 직접 입력" style={{...inp(),fontSize:13}} />
               </div>
-            </div>
-            <div>
-              <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>프로젝트 기간</label>
-              <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                <div><label style={{display:'block',fontSize:12,color:'#6b7280',marginBottom:4}}>시작일</label><input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={inp()} /></div>
-                <div><label style={{display:'block',fontSize:12,color:'#6b7280',marginBottom:4}}>종료일</label><input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={inp()} /></div>
+              <div>
+                <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>카테고리</label>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  {CATEGORIES.map(cat=>{ const cc=CATEGORY_COLORS[cat]; return <button key={cat} onClick={()=>setFd({...fd,category:cat})} style={{padding:'6px 16px',borderRadius:20,border:`2px solid ${fd.category===cat?cc.border:'#e5e7eb'}`,background:fd.category===cat?cc.bg:'white',color:fd.category===cat?cc.text:'#6b7280',cursor:'pointer',fontSize:13,fontWeight:fd.category===cat?600:400}}>{cat}</button>; })}
+                </div>
               </div>
+              <div>
+                <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>프로젝트 기간</label>
+                <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                  <div><label style={{display:'block',fontSize:12,color:'#6b7280',marginBottom:4}}>시작일</label><input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={inp()} /></div>
+                  <div><label style={{display:'block',fontSize:12,color:'#6b7280',marginBottom:4}}>종료일</label><input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={inp()} /></div>
+                </div>
+              </div>
+              <div>
+                <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률 <span style={{color:'#3b82f6',fontWeight:'bold',marginLeft:8}}>{fd.progress||0}%</span></label>
+                <input type="range" min="0" max="100" value={fd.progress||0} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} />
+              </div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} /></div>
             </div>
-            <div>
-              <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률 <span style={{color:'#3b82f6',fontWeight:'bold',marginLeft:8}}>{fd.progress||0}%</span></label>
-              <input type="range" min="0" max="100" value={fd.progress||0} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} />
-            </div>
-            <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} /></div>
           </div>
-          <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:24}}>
-            <button onClick={onClose} style={{padding:'10px 20px',border:'1px solid #d1d5db',borderRadius:8,background:'white',cursor:'pointer',fontSize:14}}>취소</button>
-            <button onClick={()=>{updateProject(proj.id,fd);onClose();}} style={{padding:'10px 20px',border:'none',borderRadius:8,background:'#3b82f6',color:'white',cursor:'pointer',fontSize:14,fontWeight:500}}>저장</button>
+          {/* 버튼 하단 고정 */}
+          <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'16px 20px',borderTop:'1px solid #f1f5f9',flexShrink:0,background:'white',borderRadius:'0 0 0 0'}}>
+            <button onClick={onClose} style={{padding:'12px 24px',border:'1px solid #d1d5db',borderRadius:10,background:'white',cursor:'pointer',fontSize:15,fontWeight:500}}>취소</button>
+            <button onClick={()=>{updateProject(proj.id,fd);onClose();}} style={{padding:'12px 24px',border:'none',borderRadius:10,background:'#3b82f6',color:'white',cursor:'pointer',fontSize:15,fontWeight:600}}>저장</button>
           </div>
         </div>
       </div>
@@ -931,41 +938,48 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     React.useEffect(() => {
       const el = overlayRef.current;
       if (!el) return;
-      const prevent = (e: TouchEvent) => { if ((e.target as HTMLElement).closest('.modal-scroll')) return; e.preventDefault(); };
+      const prevent = (e: TouchEvent) => e.preventDefault();
       el.addEventListener('touchmove', prevent, { passive: false });
       return () => el.removeEventListener('touchmove', prevent);
     }, []);
     return (
       <div ref={overlayRef} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
-        <div className="modal-scroll" style={{background:'white',borderRadius:'16px 16px 0 0',padding:'20px 20px 32px',width:'100%',maxWidth:560,maxHeight:'92dvh',overflowY:'auto',WebkitOverflowScrolling:'touch' as any,boxShadow:'0 -4px 32px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
-          <div style={{width:40,height:4,borderRadius:2,background:'#e5e7eb',margin:'0 auto 20px'}}/>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-            <h3 style={{fontSize:18,fontWeight:'bold',margin:0}}>Task 편집</h3>
-            <button onClick={onClose} style={{border:'none',background:'none',cursor:'pointer',fontSize:20,color:'#9ca3af'}}>✕</button>
+        <div style={{background:'white',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:560,maxHeight:'92dvh',display:'flex',flexDirection:'column',boxShadow:'0 -4px 32px rgba(0,0,0,0.25)',touchAction:'pan-y'}} onClick={e=>e.stopPropagation()}>
+          {/* 핸들 + 헤더 고정 */}
+          <div style={{padding:'16px 20px 0',flexShrink:0}}>
+            <div style={{width:40,height:4,borderRadius:2,background:'#e5e7eb',margin:'0 auto 16px'}}/>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <h3 style={{fontSize:18,fontWeight:'bold',margin:0}}>Task 편집</h3>
+              <button onClick={onClose} style={{border:'none',background:'#f3f4f6',cursor:'pointer',fontSize:18,color:'#374151',width:36,height:36,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>✕</button>
+            </div>
           </div>
-          <div style={{display:'flex',flexDirection:'column',gap:16}}>
-            <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>Task 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} /></div>
-            <div>
-              <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>카테고리</label>
-              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                <button onClick={()=>setFd({...fd,category:''})} style={{padding:'6px 14px',borderRadius:20,border:`2px solid ${!fd.category?'#6b7280':'#e5e7eb'}`,background:!fd.category?'#f3f4f6':'white',color:!fd.category?'#374151':'#9ca3af',cursor:'pointer',fontSize:13,fontWeight:!fd.category?600:400}}>없음</button>
-                {CATEGORIES.map(cat=>{ const cc=CATEGORY_COLORS[cat]; return <button key={cat} onClick={()=>setFd({...fd,category:cat})} style={{padding:'6px 14px',borderRadius:20,border:`2px solid ${fd.category===cat?cc.border:'#e5e7eb'}`,background:fd.category===cat?cc.bg:'white',color:fd.category===cat?cc.text:'#6b7280',cursor:'pointer',fontSize:13,fontWeight:fd.category===cat?600:400}}>{cat}</button>; })}
+          {/* 스크롤 영역 */}
+          <div style={{overflowY:'auto',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
+            <div style={{display:'flex',flexDirection:'column',gap:16,paddingBottom:8}}>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>Task 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} /></div>
+              <div>
+                <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>카테고리</label>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  <button onClick={()=>setFd({...fd,category:''})} style={{padding:'6px 14px',borderRadius:20,border:`2px solid ${!fd.category?'#6b7280':'#e5e7eb'}`,background:!fd.category?'#f3f4f6':'white',color:!fd.category?'#374151':'#9ca3af',cursor:'pointer',fontSize:13,fontWeight:!fd.category?600:400}}>없음</button>
+                  {CATEGORIES.map(cat=>{ const cc=CATEGORY_COLORS[cat]; return <button key={cat} onClick={()=>setFd({...fd,category:cat})} style={{padding:'6px 14px',borderRadius:20,border:`2px solid ${fd.category===cat?cc.border:'#e5e7eb'}`,background:fd.category===cat?cc.bg:'white',color:fd.category===cat?cc.text:'#6b7280',cursor:'pointer',fontSize:13,fontWeight:fd.category===cat?600:400}}>{cat}</button>; })}
+                </div>
               </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (정)</label><input value={fd.assignee||''} onChange={e=>setFd({...fd,assignee:e.target.value})} style={inp()} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (부)</label><input value={fd.subAssignee||''} onChange={e=>setFd({...fd,subAssignee:e.target.value})} style={inp()} /></div>
+              </div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} /></div>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>시작일</label><input type="date" value={fd.startDate} onChange={e=>setFd({...fd,startDate:e.target.value})} style={inp()} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>종료일</label><input type="date" value={fd.endDate} onChange={e=>setFd({...fd,endDate:e.target.value})} style={inp()} /></div>
+              </div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률: <span style={{color:'#3b82f6',fontWeight:'bold'}}>{fd.progress}%</span></label><input type="range" min="0" max="100" value={fd.progress} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} /></div>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (정)</label><input value={fd.assignee||''} onChange={e=>setFd({...fd,assignee:e.target.value})} style={inp()} /></div>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (부)</label><input value={fd.subAssignee||''} onChange={e=>setFd({...fd,subAssignee:e.target.value})} style={inp()} /></div>
-            </div>
-            <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} /></div>
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>시작일</label><input type="date" value={fd.startDate} onChange={e=>setFd({...fd,startDate:e.target.value})} style={inp()} /></div>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>종료일</label><input type="date" value={fd.endDate} onChange={e=>setFd({...fd,endDate:e.target.value})} style={inp()} /></div>
-            </div>
-            <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률: <span style={{color:'#3b82f6',fontWeight:'bold'}}>{fd.progress}%</span></label><input type="range" min="0" max="100" value={fd.progress} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} /></div>
           </div>
-          <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:24}}>
-            <button onClick={onClose} style={{padding:'10px 20px',border:'1px solid #d1d5db',borderRadius:8,background:'white',cursor:'pointer',fontSize:14}}>취소</button>
-            <button onClick={()=>{updateTask(pid,task.id,fd);onClose();}} style={{padding:'10px 20px',border:'none',borderRadius:8,background:'#3b82f6',color:'white',cursor:'pointer',fontSize:14,fontWeight:500}}>저장</button>
+          {/* 버튼 하단 고정 */}
+          <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'16px 20px',borderTop:'1px solid #f1f5f9',flexShrink:0,background:'white'}}>
+            <button onClick={onClose} style={{padding:'12px 24px',border:'1px solid #d1d5db',borderRadius:10,background:'white',cursor:'pointer',fontSize:15,fontWeight:500}}>취소</button>
+            <button onClick={()=>{updateTask(pid,task.id,fd);onClose();}} style={{padding:'12px 24px',border:'none',borderRadius:10,background:'#3b82f6',color:'white',cursor:'pointer',fontSize:15,fontWeight:600}}>저장</button>
           </div>
         </div>
       </div>
@@ -1068,229 +1082,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   // ────────────────────────────────────────────────────────────
   // 모바일 / 태블릿 세로 → 카드형 뷰
-  // ────────────────────────────────────────────────────────────
-  if (!showGantt) {
-    const getMiniPos = (s: string, e: string) => {
-      if (!s || !e) return null;
-      const sd = parseDate(s), ed = parseDate(e);
-      if (isNaN(sd.getTime()) || isNaN(ed.getTime())) return null;
-      const total = V_END.getTime() - V_START.getTime();
-      const left  = Math.max(0, Math.min(100, (sd.getTime() - V_START.getTime()) / total * 100));
-      const right = Math.max(0, Math.min(100, (ed.getTime() - V_START.getTime()) / total * 100));
-      return { left, width: Math.max(2, right - left) };
-    };
-    const todayPct = (() => {
-      const t = new Date();
-      if (t < V_START || t > V_END) return null;
-      return (t.getTime() - V_START.getTime()) / (V_END.getTime() - V_START.getTime()) * 100;
-    })();
-
-    const isTabletPortrait = deviceType === 'tablet' && isPortrait;
-
-    return (
-      <div style={{height:'100dvh',width:'100%',maxWidth:'100vw',display:'flex',flexDirection:'column',background:'#0f0f1a',fontFamily:"'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif",overflow:'hidden',boxSizing:'border-box',
-        paddingTop:'env(safe-area-inset-top)',
-        paddingBottom:'env(safe-area-inset-bottom)',
-        paddingLeft:'env(safe-area-inset-left)',
-        paddingRight:'env(safe-area-inset-right)',
-      }}>
-
-        <style>{`
-          @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-          @keyframes spin{to{transform:rotate(360deg)}}
-          @keyframes fadeInDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
-          *, *::before, *::after { box-sizing: border-box; font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif; }
-          html, body { overflow-x: hidden; max-width: 100vw; }
-          .ms::-webkit-scrollbar{display:none} .ms{scrollbar-width:none}
-          .ghdr:active{opacity:0.75} .btask:active{opacity:0.7}
-          .hdr-collapsible{ overflow:hidden; transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease; }
-        `}</style>
-
-        {/* 헤더 */}
-        <div style={{
-          background:'linear-gradient(135deg,#0f0f1a,#1a1a2e,#16213e)',
-          borderBottom:'1px solid rgba(255,255,255,0.08)',
-          flexShrink:0,
-          boxShadow:'0 2px 16px rgba(0,0,0,0.4)',
-          paddingTop: (!isPortrait && headerCollapsed) ? 6 : 10,
-          paddingBottom: (!isPortrait && headerCollapsed) ? 6 : 10,
-          paddingLeft: 'max(14px, env(safe-area-inset-left))',
-          paddingRight: 'max(14px, env(safe-area-inset-right))',
-          transition:'padding 0.28s ease',
-        }}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:(!isPortrait&&headerCollapsed)?0:8,transition:'margin-bottom 0.28s ease'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <div style={{display:'flex',background:'rgba(255,255,255,0.07)',borderRadius:9,padding:3,border:'1px solid rgba(255,255,255,0.1)',gap:2}}>
-                {([2,1] as const).map(id=>(
-                  <button key={id} onClick={()=>onAppChange(id)}
-                    style={{padding:'5px 12px',borderRadius:7,border:'none',cursor:'pointer',fontSize:12,fontWeight:appId===id?700:400,
-                      background:appId===id?'linear-gradient(135deg,#6366f1,#8b5cf6)':'transparent',
-                      color:appId===id?'#fff':'rgba(148,163,184,0.7)',fontFamily:'inherit',
-                      boxShadow:appId===id?'0 2px 8px rgba(99,102,241,0.4)':'none',transition:'all 0.2s'}}>
-                    {id===2?'샌디앱':'버스'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:6}}>
-              {saving && <div style={{display:'flex',alignItems:'center',gap:4,fontSize:10,color:'#4ade80'}}><div style={{width:8,height:8,border:'2px solid #4ade80',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>저장중</div>}
-              {realtimeToast && <span style={{fontSize:10,color:'#4ade80',background:'rgba(74,222,128,0.12)',padding:'2px 7px',borderRadius:8,border:'1px solid rgba(74,222,128,0.25)',fontWeight:600,animation:'fadeInDown 0.3s ease'}}>🔄 업데이트</span>}
-              <button onClick={expandAll} style={{padding:'5px 9px',background:'rgba(99,102,241,0.2)',border:'1px solid rgba(99,102,241,0.5)',borderRadius:7,cursor:'pointer',fontSize:11,color:'#c7d2fe',fontFamily:'inherit',fontWeight:700}}>전체펴기</button>
-              <button onClick={collapseAll} style={{padding:'5px 9px',background:'rgba(99,102,241,0.2)',border:'1px solid rgba(99,102,241,0.5)',borderRadius:7,cursor:'pointer',fontSize:11,color:'#c7d2fe',fontFamily:'inherit',fontWeight:700}}>전체접기</button>
-              <button onClick={onLogout} style={{padding:'5px 10px',background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.25)',borderRadius:7,cursor:'pointer',fontSize:11,color:'#fca5a5',fontFamily:'inherit'}}>로그아웃</button>
-            </div>
-          </div>
-
-          <div className="hdr-collapsible" style={{maxHeight:(!isPortrait&&headerCollapsed)?'0px':'50px',opacity:(!isPortrait&&headerCollapsed)?0:1}}>
-            <div className="ms" style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:2,alignItems:'center'}}>
-              <button onClick={()=>setActiveCategories([])}
-                style={{padding:'4px 12px',borderRadius:20,fontSize:11,cursor:'pointer',fontWeight:activeCategories.length===0?600:400,border:activeCategories.length===0?'1.5px solid #818cf8':'1.5px solid rgba(255,255,255,0.2)',background:activeCategories.length===0?'rgba(99,102,241,0.35)':'rgba(255,255,255,0.07)',color:activeCategories.length===0?'#fff':'#e2e8f0',whiteSpace:'nowrap',flexShrink:0,fontFamily:'inherit'}}>
-                전체 {projects.length}
-              </button>
-              {CATEGORIES.map(cat=>{ const isActive=activeCategories.includes(cat); const cc=CATEGORY_COLORS[cat]; return (
-                <button key={cat} onClick={()=>setActiveCategories(prev=>prev.includes(cat)?prev.filter(c=>c!==cat):[...prev,cat])}
-                  style={{padding:'4px 12px',borderRadius:20,fontSize:11,cursor:'pointer',fontWeight:isActive?600:400,border:isActive?`1.5px solid ${cc.border}`:'1.5px solid rgba(255,255,255,0.2)',background:isActive?`${cc.bg}22`:'rgba(255,255,255,0.07)',color:isActive?cc.border:'#e2e8f0',whiteSpace:'nowrap',flexShrink:0,fontFamily:'inherit',display:'flex',alignItems:'center',gap:4}}>
-                  <span style={{width:7,height:7,borderRadius:'50%',background:cc.border,flexShrink:0,display:'inline-block'}}/>
-                  {cat}
-                </button>
-              ); })}
-              <div style={{width:1,height:14,background:'rgba(255,255,255,0.2)',flexShrink:0}}/>
-            </div>
-          </div>
-        </div>
-
-        {/* 스크롤 영역 */}
-        <div ref={mobileScrollRef} className="ms" style={{
-          flex:1, overflowY:'auto', overflowX:'hidden',
-          paddingTop: 10,
-          paddingBottom: 90,
-          paddingLeft: isTabletPortrait ? 'max(20px, env(safe-area-inset-left))' : 'max(12px, env(safe-area-inset-left))',
-          paddingRight: isTabletPortrait ? 'max(20px, env(safe-area-inset-right))' : 'max(12px, env(safe-area-inset-right))',
-        }}>
-          {groupedFiltered.length===0 ? (
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'80px 0',color:'#475569',gap:10}}>
-              <span style={{fontSize:32}}>📋</span>
-              <span style={{fontSize:14}}>프로젝트가 없습니다</span>
-              <button onClick={addProject} style={{color:'#6366f1',background:'none',border:'1px solid rgba(99,102,241,0.3)',borderRadius:20,padding:'6px 16px',cursor:'pointer',fontSize:13,fontFamily:'inherit'}}>+ 프로젝트 추가</button>
-            </div>
-          ) : groupedFiltered.map(group=>(
-            <div key={group.name} style={{marginBottom:14}}>
-              <div className="ghdr" onClick={()=>toggleGroup(group.name)}
-                style={{display:'flex',alignItems:'center',gap:7,padding:'7px 10px',background:'rgba(99,102,241,0.1)',borderRadius:10,marginBottom:8,borderLeft:'3px solid #6366f1',cursor:'pointer',userSelect:'none'}}>
-                <span style={{fontSize:13}}>📁</span>
-                <span style={{fontSize:13,fontWeight:800,color:'#e2e8f0',flex:1}}>{group.name}</span>
-                <span style={{fontSize:11,color:'#6366f1',background:'rgba(99,102,241,0.15)',padding:'1px 7px',borderRadius:10,fontWeight:600}}>{group.items.length}개</span>
-                <span style={{fontSize:11,color:'#6366f1',transition:'transform 0.2s',display:'inline-block',transform:collapsedGroups.has(group.name)?'rotate(0deg)':'rotate(90deg)'}}>▶</span>
-              </div>
-
-              {!collapsedGroups.has(group.name) && group.items.map((proj:any)=>{
-                const c=COLOR_MAP[proj.color]||COLOR_MAP.blue;
-                const catColor=CATEGORY_COLORS[proj.category];
-                const {progress:projProg,startDate:projStart,endDate:projEnd}=getProjectMeta(proj);
-                const projMiniPos=getMiniPos(projStart,projEnd);
-                return (
-                  <div key={proj.id} style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${catColor?catColor.border+'33':c.border+'33'}`,borderRadius:12,marginBottom:8,overflow:'hidden'}}>
-                    <div style={{padding:'10px 12px 8px'}}>
-                      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8,marginBottom:6}}>
-                        <div style={{display:'flex',alignItems:'center',gap:6,flex:1,flexWrap:'wrap'}}>
-                          {catColor && <span style={{fontSize:11,fontWeight:700,padding:'2px 7px',borderRadius:8,background:catColor.bg,color:catColor.text,border:`1px solid ${catColor.border}`,flexShrink:0}}>{proj.category}</span>}
-                          <span style={{fontSize:13,fontWeight:700,color:'#f1f5f9',lineHeight:1.3}}>{proj.name}</span>
-                        </div>
-                        <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
-                          <span style={{fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:10,background:catColor?`${catColor.bg}33`:'rgba(59,130,246,0.15)',color:catColor?catColor.border:'#60a5fa'}}>{projProg}%</span>
-                          <button onClick={()=>setEditingProject(proj)} style={{padding:4,background:'none',border:'none',cursor:'pointer',fontSize:14,lineHeight:1}}>✏️</button>
-                          <button onClick={()=>deleteProject(proj.id)} style={{padding:4,background:'none',border:'none',cursor:'pointer',fontSize:14,lineHeight:1}}>🗑️</button>
-                        </div>
-                      </div>
-                      {(proj.owner||proj.subOwner||projStart) && (
-                        <div style={{fontSize:11,color:'#94a3b8',marginBottom:6,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                          {(proj.owner||proj.subOwner) && <span>👤 {[proj.owner,proj.subOwner].filter(Boolean).join(' · ')}</span>}
-                          {projStart && <span>📅 {projStart} → {projEnd}</span>}
-                        </div>
-                      )}
-                      {projMiniPos && (
-                        <div style={{position:'relative',marginBottom:2}}>
-                          <div style={{height:5,background:'rgba(255,255,255,0.05)',borderRadius:3,position:'relative',overflow:'visible'}}>
-                            <div style={{position:'absolute',top:0,left:`${projMiniPos.left}%`,width:`${projMiniPos.width}%`,height:'100%',background:catColor?`${catColor.border}33`:c.barLight,borderRadius:3}}/>
-                            <div style={{position:'absolute',top:0,left:`${projMiniPos.left}%`,width:`${projMiniPos.width*(projProg/100)}%`,height:'100%',background:catColor?catColor.border:c.bar,borderRadius:3,opacity:0.9}}/>
-                            {todayPct!==null&&<div style={{position:'absolute',left:`${todayPct}%`,top:-3,width:2,height:11,background:'#ef4444',borderRadius:1,zIndex:2}}/>}
-                          </div>
-                          <div style={{display:'flex',justifyContent:'space-between',marginTop:3,fontSize:9,color:'#475569'}}>
-                            <span>1월</span><span>4월</span><span>7월</span><span>10월</span><span>12월</span>
-                          </div>
-                        </div>
-                      )}
-                      {proj.description&&<div style={{fontSize:12,color:'#64748b',marginTop:4,lineHeight:1.4}}>{proj.description}</div>}
-                    </div>
-
-                    {proj.expanded && proj.tasks.length>0 && (
-                      <div style={{borderTop:'1px solid rgba(255,255,255,0.05)',padding:'6px 12px 6px'}}>
-                        {proj.tasks.map((task:any)=>{
-                          const tc=CATEGORY_COLORS[task.category];
-                          const tp=getMiniPos(task.startDate,task.endDate);
-                          return (
-                            <div key={task.id} style={{padding:'6px 8px',borderRadius:8,marginBottom:4,background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.04)'}}>
-                              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,marginBottom:tp?3:0}}>
-                                <div style={{display:'flex',alignItems:'center',gap:5,flex:1,minWidth:0}}>
-                                  <span style={{color:'rgba(167,139,250,0.5)',fontSize:11,flexShrink:0}}>└</span>
-                                  {task.category&&tc&&<span style={{fontSize:10,fontWeight:700,padding:'1px 5px',borderRadius:6,background:tc.bg,color:tc.text,border:`1px solid ${tc.border}`,flexShrink:0}}>{task.category}</span>}
-                                  <span style={{fontSize:12,color:'#e2e8f0',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{task.name}</span>
-                                </div>
-                                <div style={{display:'flex',alignItems:'center',gap:3,flexShrink:0}}>
-                                  <span style={{fontSize:10,color:'#475569',whiteSpace:'nowrap'}}>{task.startDate?.slice(5)} → {task.endDate?.slice(5)}</span>
-                                  <button onClick={()=>setEditingTask({task,pid:proj.id})} style={{padding:2,background:'none',border:'none',cursor:'pointer',fontSize:12,lineHeight:1}}>✏️</button>
-                                  <button onClick={()=>deleteTask(proj.id,task.id)} style={{padding:2,background:'none',border:'none',cursor:'pointer',fontSize:12,lineHeight:1}}>🗑️</button>
-                                </div>
-                              </div>
-                              {tp&&(<div style={{height:3,background:'rgba(255,255,255,0.04)',borderRadius:2,position:'relative',overflow:'hidden'}}>
-                                <div style={{position:'absolute',top:0,left:`${tp.left}%`,width:`${tp.width}%`,height:'100%',background:tc?tc.bg:'rgba(255,255,255,0.08)'}}/>
-                                <div style={{position:'absolute',top:0,left:`${tp.left}%`,width:`${tp.width*(task.progress||0)/100}%`,height:'100%',background:tc?tc.border:c.bar,opacity:0.85}}/>
-                              </div>)}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {!proj.expanded && proj.tasks.length>0 && (
-                      <div style={{padding:'2px 12px 0',borderTop:'1px solid rgba(255,255,255,0.04)'}} />
-                    )}
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 12px 9px',borderTop:'1px solid rgba(255,255,255,0.05)'}}>
-                      <button onClick={()=>toggleProject(proj.id)} style={{fontSize:11,color:'#6366f1',background:'none',border:'none',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:3}}>
-                        {proj.expanded ? '▲ 접기' : `▼ 펼치기${proj.tasks.length>0?` (Task ${proj.tasks.length}개)`:''}`}
-                      </button>
-                      <button className="btask" onClick={()=>{if(!proj.expanded)toggleProject(proj.id);addTask(proj.id);}}
-                        style={{display:'flex',alignItems:'center',gap:5,padding:'5px 14px',background:'rgba(99,102,241,0.1)',border:'1px solid rgba(99,102,241,0.4)',borderRadius:20,fontSize:12,fontWeight:600,color:'#818cf8',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'}}>
-                        ＋ Task 추가
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-
-        {/* FAB */}
-        <button onClick={addProject} style={{
-          position:'fixed',
-          bottom:'max(24px, calc(env(safe-area-inset-bottom) + 16px))',
-          right:'max(18px, env(safe-area-inset-right))',
-          width:52,height:52,
-          background:'linear-gradient(135deg,#6366f1,#8b5cf6)',border:'none',borderRadius:'50%',
-          display:'flex',alignItems:'center',justifyContent:'center',
-          fontSize:26,color:'white',cursor:'pointer',
-          boxShadow:'0 4px 20px rgba(99,102,241,0.55)',zIndex:30,
-        }}>+</button>
-
-        {editingProject && <ProjectEditModal proj={editingProject} onClose={()=>setEditingProject(null)} />}
-        {editingTask && <TaskEditModal task={editingTask.task} pid={editingTask.pid} onClose={()=>setEditingTask(null)} />}
-        {showChangePw && <ChangePwModal />}
-      </div>
-    );
-  }
-
-  // ────────────────────────────────────────────────────────────
-  // 데스크탑 / 태블릿 가로 → 간트차트 뷰
   // ────────────────────────────────────────────────────────────
 
   // ── 월 캘린더 뷰 컴포넌트 ────────────────────────────────────
@@ -1431,25 +1222,38 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       <>
       <div ref={calScrollRef} style={{flex:1,overflowY:'auto',background:'#f8fafc',display:'flex',flexDirection:'column'}}>
         {/* 월 네비게이션 */}
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 20px',background:'white',borderBottom:'1px solid #e5e7eb',flexShrink:0}}>
-          <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',background:'white',borderBottom:'1px solid #e5e7eb',flexShrink:0,gap:8}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
             <button onClick={()=>setCalMonth((m: number)=>Math.max(1,m-1))} disabled={calMonth===1}
-              style={{width:30,height:30,borderRadius:8,border:'1px solid #e5e7eb',background:calMonth===1?'#f9fafb':'white',cursor:calMonth===1?'default':'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',color:calMonth===1?'#d1d5db':'#374151'}}>‹</button>
-            <span style={{fontSize:18,fontWeight:800,color:'#1e293b',minWidth:80,textAlign:'center'}}>2026년 {calMonth}월</span>
+              style={{width:28,height:28,borderRadius:8,border:'1px solid #e5e7eb',background:calMonth===1?'#f9fafb':'white',cursor:calMonth===1?'default':'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',color:calMonth===1?'#d1d5db':'#374151'}}>‹</button>
+            <span style={{fontSize:16,fontWeight:800,color:'#1e293b',whiteSpace:'nowrap',textAlign:'center'}}>2026년 {calMonth}월</span>
             <button onClick={()=>setCalMonth((m: number)=>Math.min(12,m+1))} disabled={calMonth===12}
-              style={{width:30,height:30,borderRadius:8,border:'1px solid #e5e7eb',background:calMonth===12?'#f9fafb':'white',cursor:calMonth===12?'default':'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',color:calMonth===12?'#d1d5db':'#374151'}}>›</button>
+              style={{width:28,height:28,borderRadius:8,border:'1px solid #e5e7eb',background:calMonth===12?'#f9fafb':'white',cursor:calMonth===12?'default':'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',color:calMonth===12?'#d1d5db':'#374151'}}>›</button>
           </div>
-          <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
-            <span style={{fontSize:13,color:'#4b5563',fontWeight:700,marginRight:2}}>Task :</span>
-            {CATEGORIES.map(cat => {
-              const cc = CATEGORY_COLORS[cat];
-              return (
-                <div key={cat} style={{display:'flex',alignItems:'center',gap:4}}>
-                  <div style={{width:12,height:12,borderRadius:3,background:cc.border}}/>
-                  <span style={{fontSize:13,color:'#4b5563',fontWeight:600}}>{cat}</span>
-                </div>
-              );
-            })}
+          <div style={{display:'flex',flexDirection:'column',gap:3,alignItems:'flex-end'}}>
+            <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',justifyContent:'flex-end'}}>
+              <span style={{fontSize:11,color:'#4b5563',fontWeight:700}}>Task :</span>
+              {CATEGORIES.slice(0,3).map(cat => {
+                const cc = CATEGORY_COLORS[cat];
+                return (
+                  <div key={cat} style={{display:'flex',alignItems:'center',gap:3}}>
+                    <div style={{width:10,height:10,borderRadius:2,background:cc.border}}/>
+                    <span style={{fontSize:11,color:'#4b5563',fontWeight:600}}>{cat}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',justifyContent:'flex-end'}}>
+              {CATEGORIES.slice(3).map(cat => {
+                const cc = CATEGORY_COLORS[cat];
+                return (
+                  <div key={cat} style={{display:'flex',alignItems:'center',gap:3}}>
+                    <div style={{width:10,height:10,borderRadius:2,background:cc.border}}/>
+                    <span style={{fontSize:11,color:'#4b5563',fontWeight:600}}>{cat}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -1525,7 +1329,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                       </div>
                     )}
                     {!isWeekend && day?.isHoliday && (
-                      <div style={{position:'absolute',top:5,right:4,fontSize:9,color:'#ef4444',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',maxWidth:55,textOverflow:'ellipsis'}}>
+                      <div style={{position:'absolute',top:20,left:2,right:2,fontSize:8,color:'#ef4444',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',lineHeight:1}}>
                         {day.holidayName}
                       </div>
                     )}
@@ -1625,6 +1429,247 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   };
 
   // ── 분기보기 헤더 렌더링 ────────────────────────────────────
+
+  if (!showGantt) {
+    const getMiniPos = (s: string, e: string) => {
+      if (!s || !e) return null;
+      const sd = parseDate(s), ed = parseDate(e);
+      if (isNaN(sd.getTime()) || isNaN(ed.getTime())) return null;
+      const total = V_END.getTime() - V_START.getTime();
+      const left  = Math.max(0, Math.min(100, (sd.getTime() - V_START.getTime()) / total * 100));
+      const right = Math.max(0, Math.min(100, (ed.getTime() - V_START.getTime()) / total * 100));
+      return { left, width: Math.max(2, right - left) };
+    };
+    const todayPct = (() => {
+      const t = new Date();
+      if (t < V_START || t > V_END) return null;
+      return (t.getTime() - V_START.getTime()) / (V_END.getTime() - V_START.getTime()) * 100;
+    })();
+
+    const isTabletPortrait = deviceType === 'tablet' && isPortrait;
+
+    return (
+      <div style={{height:'100dvh',width:'100%',maxWidth:'100vw',display:'flex',flexDirection:'column',background:'#0f0f1a',fontFamily:"'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif",overflow:'hidden',boxSizing:'border-box',
+        paddingTop:'env(safe-area-inset-top)',
+        paddingBottom:'env(safe-area-inset-bottom)',
+        paddingLeft:'env(safe-area-inset-left)',
+        paddingRight:'env(safe-area-inset-right)',
+      }}>
+
+        <style>{`
+          @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+          @keyframes spin{to{transform:rotate(360deg)}}
+          @keyframes fadeInDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+          *, *::before, *::after { box-sizing: border-box; font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif; }
+          html, body { overflow-x: hidden; max-width: 100vw; }
+          .ms::-webkit-scrollbar{display:none} .ms{scrollbar-width:none}
+          .ghdr:active{opacity:0.75} .btask:active{opacity:0.7}
+          .hdr-collapsible{ overflow:hidden; transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease; }
+        `}</style>
+
+        {/* 헤더 */}
+        <div style={{
+          background:'linear-gradient(135deg,#0f0f1a,#1a1a2e,#16213e)',
+          borderBottom:'1px solid rgba(255,255,255,0.08)',
+          flexShrink:0,
+          boxShadow:'0 2px 16px rgba(0,0,0,0.4)',
+          paddingTop: (!isPortrait && headerCollapsed) ? 6 : 10,
+          paddingBottom: (!isPortrait && headerCollapsed) ? 6 : 10,
+          paddingLeft: 'max(14px, env(safe-area-inset-left))',
+          paddingRight: 'max(14px, env(safe-area-inset-right))',
+          transition:'padding 0.28s ease',
+        }}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:(!isPortrait&&headerCollapsed)?0:8,transition:'margin-bottom 0.28s ease'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{display:'flex',background:'rgba(255,255,255,0.07)',borderRadius:9,padding:3,border:'1px solid rgba(255,255,255,0.1)',gap:2}}>
+                {([2,1] as const).map(id=>(
+                  <button key={id} onClick={()=>onAppChange(id)}
+                    style={{padding:'5px 12px',borderRadius:7,border:'none',cursor:'pointer',fontSize:12,fontWeight:appId===id?700:400,
+                      background:appId===id?'linear-gradient(135deg,#6366f1,#8b5cf6)':'transparent',
+                      color:appId===id?'#fff':'rgba(148,163,184,0.7)',fontFamily:'inherit',
+                      boxShadow:appId===id?'0 2px 8px rgba(99,102,241,0.4)':'none',transition:'all 0.2s'}}>
+                    {id===2?'샌디앱':'버스'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              {saving && <div style={{display:'flex',alignItems:'center',gap:4,fontSize:10,color:'#4ade80'}}><div style={{width:8,height:8,border:'2px solid #4ade80',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>저장중</div>}
+              {realtimeToast && <span style={{fontSize:10,color:'#4ade80',background:'rgba(74,222,128,0.12)',padding:'2px 7px',borderRadius:8,border:'1px solid rgba(74,222,128,0.25)',fontWeight:600,animation:'fadeInDown 0.3s ease'}}>🔄 업데이트</span>}
+              {/* 월보기 토글 버튼 */}
+              <button onClick={()=>setViewMode(viewMode==='month'?'year':'month')}
+                style={{padding:'5px 10px',background:viewMode==='month'?'rgba(99,102,241,0.9)':'rgba(255,255,255,0.07)',border:`1px solid ${viewMode==='month'?'rgba(99,102,241,0.7)':'rgba(255,255,255,0.15)'}`,borderRadius:7,cursor:'pointer',fontSize:11,color:viewMode==='month'?'white':'#a5b4fc',fontFamily:'inherit',fontWeight:700}}>
+                {viewMode==='month'?'📋 목록':'📅 월'}
+              </button>
+              {viewMode!=='month' && <>
+                <button onClick={expandAll} style={{padding:'5px 9px',background:'rgba(99,102,241,0.2)',border:'1px solid rgba(99,102,241,0.5)',borderRadius:7,cursor:'pointer',fontSize:11,color:'#c7d2fe',fontFamily:'inherit',fontWeight:700}}>전체펴기</button>
+                <button onClick={collapseAll} style={{padding:'5px 9px',background:'rgba(99,102,241,0.2)',border:'1px solid rgba(99,102,241,0.5)',borderRadius:7,cursor:'pointer',fontSize:11,color:'#c7d2fe',fontFamily:'inherit',fontWeight:700}}>전체접기</button>
+              </>}
+              <button onClick={onLogout} style={{padding:'5px 10px',background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.25)',borderRadius:7,cursor:'pointer',fontSize:11,color:'#fca5a5',fontFamily:'inherit'}}>로그아웃</button>
+            </div>
+          </div>
+
+          <div className="hdr-collapsible" style={{maxHeight:(!isPortrait&&headerCollapsed)?'0px':'50px',opacity:(!isPortrait&&headerCollapsed)?0:1}}>
+            <div className="ms" style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:2,alignItems:'center'}}>
+              <button onClick={()=>setActiveCategories([])}
+                style={{padding:'4px 12px',borderRadius:20,fontSize:11,cursor:'pointer',fontWeight:activeCategories.length===0?600:400,border:activeCategories.length===0?'1.5px solid #818cf8':'1.5px solid rgba(255,255,255,0.2)',background:activeCategories.length===0?'rgba(99,102,241,0.35)':'rgba(255,255,255,0.07)',color:activeCategories.length===0?'#fff':'#e2e8f0',whiteSpace:'nowrap',flexShrink:0,fontFamily:'inherit'}}>
+                전체 {projects.length}
+              </button>
+              {CATEGORIES.map(cat=>{ const isActive=activeCategories.includes(cat); const cc=CATEGORY_COLORS[cat]; return (
+                <button key={cat} onClick={()=>setActiveCategories(prev=>prev.includes(cat)?prev.filter(c=>c!==cat):[...prev,cat])}
+                  style={{padding:'4px 12px',borderRadius:20,fontSize:11,cursor:'pointer',fontWeight:isActive?600:400,border:isActive?`1.5px solid ${cc.border}`:'1.5px solid rgba(255,255,255,0.2)',background:isActive?`${cc.bg}22`:'rgba(255,255,255,0.07)',color:isActive?cc.border:'#e2e8f0',whiteSpace:'nowrap',flexShrink:0,fontFamily:'inherit',display:'flex',alignItems:'center',gap:4}}>
+                  <span style={{width:7,height:7,borderRadius:'50%',background:cc.border,flexShrink:0,display:'inline-block'}}/>
+                  {cat}
+                </button>
+              ); })}
+              <div style={{width:1,height:14,background:'rgba(255,255,255,0.2)',flexShrink:0}}/>
+            </div>
+          </div>
+        </div>
+
+        {/* 월보기 */}
+        {viewMode === 'month' && <MonthCalendarView
+          calMonth={calMonth}
+          setCalMonth={setCalMonth}
+          filtered={filtered.filter((p: any) => p.category !== '영업')}
+          todayStr2={todayStr()}
+          onEditTask={(task: any, pid: number) => setEditingTask({ task, pid })}
+        />}
+
+        {/* 카드뷰 스크롤 영역 */}
+        {viewMode !== 'month' && <div ref={mobileScrollRef} className="ms" style={{
+          flex:1, overflowY:'auto', overflowX:'hidden',
+          paddingTop: 10,
+          paddingBottom: 90,
+          paddingLeft: isTabletPortrait ? 'max(20px, env(safe-area-inset-left))' : 'max(12px, env(safe-area-inset-left))',
+          paddingRight: isTabletPortrait ? 'max(20px, env(safe-area-inset-right))' : 'max(12px, env(safe-area-inset-right))',
+        }}>
+          {groupedFiltered.length===0 ? (
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'80px 0',color:'#475569',gap:10}}>
+              <span style={{fontSize:32}}>📋</span>
+              <span style={{fontSize:14}}>프로젝트가 없습니다</span>
+              <button onClick={addProject} style={{color:'#6366f1',background:'none',border:'1px solid rgba(99,102,241,0.3)',borderRadius:20,padding:'6px 16px',cursor:'pointer',fontSize:13,fontFamily:'inherit'}}>+ 프로젝트 추가</button>
+            </div>
+          ) : groupedFiltered.map(group=>(
+            <div key={group.name} style={{marginBottom:14}}>
+              <div className="ghdr" onClick={()=>toggleGroup(group.name)}
+                style={{display:'flex',alignItems:'center',gap:7,padding:'7px 10px',background:'rgba(99,102,241,0.1)',borderRadius:10,marginBottom:8,borderLeft:'3px solid #6366f1',cursor:'pointer',userSelect:'none'}}>
+                <span style={{fontSize:13}}>📁</span>
+                <span style={{fontSize:13,fontWeight:800,color:'#e2e8f0',flex:1}}>{group.name}</span>
+                <span style={{fontSize:11,color:'#6366f1',background:'rgba(99,102,241,0.15)',padding:'1px 7px',borderRadius:10,fontWeight:600}}>{group.items.length}개</span>
+                <span style={{fontSize:11,color:'#6366f1',transition:'transform 0.2s',display:'inline-block',transform:collapsedGroups.has(group.name)?'rotate(0deg)':'rotate(90deg)'}}>▶</span>
+              </div>
+
+              {!collapsedGroups.has(group.name) && group.items.map((proj:any)=>{
+                const c=COLOR_MAP[proj.color]||COLOR_MAP.blue;
+                const catColor=CATEGORY_COLORS[proj.category];
+                const {progress:projProg,startDate:projStart,endDate:projEnd}=getProjectMeta(proj);
+                const projMiniPos=getMiniPos(projStart,projEnd);
+                return (
+                  <div key={proj.id} style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${catColor?catColor.border+'33':c.border+'33'}`,borderRadius:12,marginBottom:8,overflow:'hidden'}}>
+                    <div style={{padding:'10px 12px 8px'}}>
+                      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8,marginBottom:6}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6,flex:1,flexWrap:'wrap'}}>
+                          {catColor && <span style={{fontSize:11,fontWeight:700,padding:'2px 7px',borderRadius:8,background:catColor.bg,color:catColor.text,border:`1px solid ${catColor.border}`,flexShrink:0}}>{proj.category}</span>}
+                          <span style={{fontSize:13,fontWeight:700,color:'#f1f5f9',lineHeight:1.3}}>{proj.name}</span>
+                        </div>
+                        <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+                          <span style={{fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:10,background:catColor?`${catColor.bg}33`:'rgba(59,130,246,0.15)',color:catColor?catColor.border:'#60a5fa'}}>{projProg}%</span>
+                          <button onClick={()=>setEditingProject(proj)} style={{padding:4,background:'none',border:'none',cursor:'pointer',fontSize:14,lineHeight:1}}>✏️</button>
+                          <button onClick={()=>deleteProject(proj.id)} style={{padding:4,background:'none',border:'none',cursor:'pointer',fontSize:14,lineHeight:1}}>🗑️</button>
+                        </div>
+                      </div>
+                      {(proj.owner||proj.subOwner||projStart) && (
+                        <div style={{fontSize:11,color:'#94a3b8',marginBottom:6,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                          {(proj.owner||proj.subOwner) && <span>👤 {[proj.owner,proj.subOwner].filter(Boolean).join(' · ')}</span>}
+                          {projStart && <span>📅 {projStart} → {projEnd}</span>}
+                        </div>
+                      )}
+                      {projMiniPos && (
+                        <div style={{position:'relative',marginBottom:2}}>
+                          <div style={{height:5,background:'rgba(255,255,255,0.05)',borderRadius:3,position:'relative',overflow:'visible'}}>
+                            <div style={{position:'absolute',top:0,left:`${projMiniPos.left}%`,width:`${projMiniPos.width}%`,height:'100%',background:catColor?`${catColor.border}33`:c.barLight,borderRadius:3}}/>
+                            <div style={{position:'absolute',top:0,left:`${projMiniPos.left}%`,width:`${projMiniPos.width*(projProg/100)}%`,height:'100%',background:catColor?catColor.border:c.bar,borderRadius:3,opacity:0.9}}/>
+                            {todayPct!==null&&<div style={{position:'absolute',left:`${todayPct}%`,top:-3,width:2,height:11,background:'#ef4444',borderRadius:1,zIndex:2}}/>}
+                          </div>
+                          <div style={{display:'flex',justifyContent:'space-between',marginTop:3,fontSize:9,color:'#475569'}}>
+                            <span>1월</span><span>4월</span><span>7월</span><span>10월</span><span>12월</span>
+                          </div>
+                        </div>
+                      )}
+                      {proj.description&&<div style={{fontSize:12,color:'#64748b',marginTop:4,lineHeight:1.4}}>{proj.description}</div>}
+                    </div>
+
+                    {proj.expanded && proj.tasks.length>0 && (
+                      <div style={{borderTop:'1px solid rgba(255,255,255,0.05)',padding:'6px 12px 6px'}}>
+                        {proj.tasks.map((task:any)=>{
+                          const tc=CATEGORY_COLORS[task.category];
+                          const tp=getMiniPos(task.startDate,task.endDate);
+                          return (
+                            <div key={task.id} style={{padding:'6px 8px',borderRadius:8,marginBottom:4,background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.04)'}}>
+                              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,marginBottom:tp?3:0}}>
+                                <div style={{display:'flex',alignItems:'center',gap:5,flex:1,minWidth:0}}>
+                                  <span style={{color:'rgba(167,139,250,0.5)',fontSize:11,flexShrink:0}}>└</span>
+                                  {task.category&&tc&&<span style={{fontSize:10,fontWeight:700,padding:'1px 5px',borderRadius:6,background:tc.bg,color:tc.text,border:`1px solid ${tc.border}`,flexShrink:0}}>{task.category}</span>}
+                                  <span style={{fontSize:12,color:'#e2e8f0',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{task.name}</span>
+                                </div>
+                                <div style={{display:'flex',alignItems:'center',gap:3,flexShrink:0}}>
+                                  <span style={{fontSize:10,color:'#475569',whiteSpace:'nowrap'}}>{task.startDate?.slice(5)} → {task.endDate?.slice(5)}</span>
+                                  <button onClick={()=>setEditingTask({task,pid:proj.id})} style={{padding:2,background:'none',border:'none',cursor:'pointer',fontSize:12,lineHeight:1}}>✏️</button>
+                                  <button onClick={()=>deleteTask(proj.id,task.id)} style={{padding:2,background:'none',border:'none',cursor:'pointer',fontSize:12,lineHeight:1}}>🗑️</button>
+                                </div>
+                              </div>
+                              {tp&&(<div style={{height:3,background:'rgba(255,255,255,0.04)',borderRadius:2,position:'relative',overflow:'hidden'}}>
+                                <div style={{position:'absolute',top:0,left:`${tp.left}%`,width:`${tp.width}%`,height:'100%',background:tc?tc.bg:'rgba(255,255,255,0.08)'}}/>
+                                <div style={{position:'absolute',top:0,left:`${tp.left}%`,width:`${tp.width*(task.progress||0)/100}%`,height:'100%',background:tc?tc.border:c.bar,opacity:0.85}}/>
+                              </div>)}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {!proj.expanded && proj.tasks.length>0 && (
+                      <div style={{padding:'2px 12px 0',borderTop:'1px solid rgba(255,255,255,0.04)'}} />
+                    )}
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 12px 9px',borderTop:'1px solid rgba(255,255,255,0.05)'}}>
+                      <button onClick={()=>toggleProject(proj.id)} style={{fontSize:11,color:'#6366f1',background:'none',border:'none',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:3}}>
+                        {proj.expanded ? '▲ 접기' : `▼ 펼치기${proj.tasks.length>0?` (Task ${proj.tasks.length}개)`:''}`}
+                      </button>
+                      <button className="btask" onClick={()=>{if(!proj.expanded)toggleProject(proj.id);addTask(proj.id);}}
+                        style={{display:'flex',alignItems:'center',gap:5,padding:'5px 14px',background:'rgba(99,102,241,0.1)',border:'1px solid rgba(99,102,241,0.4)',borderRadius:20,fontSize:12,fontWeight:600,color:'#818cf8',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'}}>
+                        ＋ Task 추가
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>}  {/* viewMode !== 'month' 카드뷰 끝 */}
+
+        {/* FAB — 월보기 아닐 때만 */}
+        {viewMode !== 'month' && <button onClick={addProject} style={{
+          position:'fixed',
+          bottom:'max(24px, calc(env(safe-area-inset-bottom) + 16px))',
+          right:'max(18px, env(safe-area-inset-right))',
+          width:52,height:52,
+          background:'linear-gradient(135deg,#6366f1,#8b5cf6)',border:'none',borderRadius:'50%',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          fontSize:26,color:'white',cursor:'pointer',
+          boxShadow:'0 4px 20px rgba(99,102,241,0.55)',zIndex:30,
+        }}>+</button>}
+
+        {editingProject && <ProjectEditModal proj={editingProject} onClose={()=>setEditingProject(null)} />}
+        {editingTask && <TaskEditModal task={editingTask.task} pid={editingTask.pid} onClose={()=>setEditingTask(null)} />}
+        {showChangePw && <ChangePwModal />}
+      </div>
+    );
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // 데스크탑 / 태블릿 가로 → 간트차트 뷰
+  // ────────────────────────────────────────────────────────────
+
   const QuarterHeader = () => (
     <div style={{position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'2px solid #e2e8f0',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW}}>
       {/* 월 행 */}
