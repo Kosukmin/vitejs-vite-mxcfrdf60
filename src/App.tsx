@@ -297,7 +297,17 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   };
   const currentApp = APP_CONFIG[appId];
 
-  const [viewMode, setViewMode] = useState<ViewMode>('year');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    // 터치 기기 중 폰/폴드(접힘)는 월뷰 기본값
+    if (typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
+      const w = window.innerWidth, h = window.innerHeight;
+      const short = Math.min(w,h), long = Math.max(w,h);
+      // 태블릿/폴드오픈은 간트뷰 → year, 폰/폴드접힘은 month
+      if (short >= 600 && long/short < 2.0) return 'year';
+      return 'month';
+    }
+    return 'year';
+  });
   const getW = () => window.innerWidth  || window.screen.width;
   const getH = () => window.innerHeight || window.screen.height;
   const [screenW, setScreenW] = useState(getW);
@@ -527,7 +537,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   useEffect(() => {
     setProjects([]);
     // 앱 전환 시 년보기 + 전체 접기 초기화
-    setViewMode('year');
+    // 앱 전환 시 뷰모드 리셋 — 모바일 폰/폴드는 month, 나머지는 year
+    setViewMode(!showGantt ? 'month' : 'year');
     setCollapsedGroups(new Set(['__all__'])); // 로드 후 collapseAll 트리거용 sentinel
     load();
     const channel = supabase.channel(currentApp.channel)
@@ -827,6 +838,15 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const today = new Date();
   const todayLeft = today>=V_START && today<=V_END ? Math.round((today.getTime()-V_START.getTime())/86400000/V_TOTAL_DAYS*TIMELINE_W) : null;
   const inp = (extra={}) => ({width:'100%',maxWidth:'100%',border:'1px solid #d1d5db',borderRadius:8,padding:'8px 12px',fontSize:14,boxSizing:'border-box' as const,...extra});
+  // iOS에서 date input 잘림 방지 전용 스타일
+  const dateInp = () => ({
+    width:'100%', maxWidth:'100%', boxSizing:'border-box' as const,
+    border:'1px solid #e5e7eb', borderRadius:10,
+    padding:'13px 14px', fontSize:15, fontWeight:500,
+    background:'#f8fafc', color:'#1e293b',
+    WebkitAppearance:'none' as any, appearance:'none' as any,
+    display:'block',
+  });
 
   const descLineStyle: React.CSSProperties = {
     fontSize: 12,
@@ -910,9 +930,15 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               </div>
               <div>
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>프로젝트 기간</label>
-                <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                  <div><label style={{display:'block',fontSize:12,color:'#6b7280',marginBottom:4}}>시작일</label><input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={inp()} /></div>
-                  <div><label style={{display:'block',fontSize:12,color:'#6b7280',marginBottom:4}}>종료일</label><input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={inp()} /></div>
+                <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                  <div>
+                    <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>시작일</label>
+                    <input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} />
+                  </div>
+                  <div>
+                    <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>종료일</label>
+                    <input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} />
+                  </div>
                 </div>
               </div>
               <div>
@@ -969,9 +995,15 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (부)</label><input value={fd.subAssignee||''} onChange={e=>setFd({...fd,subAssignee:e.target.value})} style={inp()} /></div>
               </div>
               <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} /></div>
-              <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>시작일</label><input type="date" value={fd.startDate} onChange={e=>setFd({...fd,startDate:e.target.value})} style={inp()} /></div>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>종료일</label><input type="date" value={fd.endDate} onChange={e=>setFd({...fd,endDate:e.target.value})} style={inp()} /></div>
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                <div>
+                  <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>시작일</label>
+                  <input type="date" value={fd.startDate} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} />
+                </div>
+                <div>
+                  <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>종료일</label>
+                  <input type="date" value={fd.endDate} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} />
+                </div>
               </div>
               <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률: <span style={{color:'#3b82f6',fontWeight:'bold'}}>{fd.progress}%</span></label><input type="range" min="0" max="100" value={fd.progress} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} /></div>
             </div>
@@ -1479,33 +1511,37 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           paddingRight: 'max(14px, env(safe-area-inset-right))',
           transition:'padding 0.28s ease',
         }}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:(!isPortrait&&headerCollapsed)?0:8,transition:'margin-bottom 0.28s ease'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:(!isPortrait&&headerCollapsed)?0:8,transition:'margin-bottom 0.28s ease',gap:4}}>
+            <div style={{display:'flex',alignItems:'center',flexShrink:0}}>
               <div style={{display:'flex',background:'rgba(255,255,255,0.07)',borderRadius:9,padding:3,border:'1px solid rgba(255,255,255,0.1)',gap:2}}>
                 {([2,1] as const).map(id=>(
                   <button key={id} onClick={()=>onAppChange(id)}
-                    style={{padding:'5px 12px',borderRadius:7,border:'none',cursor:'pointer',fontSize:12,fontWeight:appId===id?700:400,
+                    style={{padding:`5px ${screenW < 320 ? '8px' : '12px'}`,borderRadius:7,border:'none',cursor:'pointer',fontSize:screenW < 320 ? 11 : 12,fontWeight:appId===id?700:400,
                       background:appId===id?'linear-gradient(135deg,#6366f1,#8b5cf6)':'transparent',
                       color:appId===id?'#fff':'rgba(148,163,184,0.7)',fontFamily:'inherit',
-                      boxShadow:appId===id?'0 2px 8px rgba(99,102,241,0.4)':'none',transition:'all 0.2s'}}>
+                      boxShadow:appId===id?'0 2px 8px rgba(99,102,241,0.4)':'none',transition:'all 0.2s',whiteSpace:'nowrap'}}>
                     {id===2?'샌디앱':'버스'}
                   </button>
                 ))}
               </div>
             </div>
-            <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <div style={{display:'flex',alignItems:'center',gap:screenW < 320 ? 3 : 6,flexShrink:0}}>
               {saving && <div style={{display:'flex',alignItems:'center',gap:4,fontSize:10,color:'#4ade80'}}><div style={{width:8,height:8,border:'2px solid #4ade80',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>저장중</div>}
-              {realtimeToast && <span style={{fontSize:10,color:'#4ade80',background:'rgba(74,222,128,0.12)',padding:'2px 7px',borderRadius:8,border:'1px solid rgba(74,222,128,0.25)',fontWeight:600,animation:'fadeInDown 0.3s ease'}}>🔄 업데이트</span>}
+              {realtimeToast && <span style={{fontSize:10,color:'#4ade80',fontWeight:600,animation:'fadeInDown 0.3s ease'}}>🔄</span>}
               {/* 월보기 토글 버튼 */}
               <button onClick={()=>setViewMode(viewMode==='month'?'year':'month')}
-                style={{padding:'5px 10px',background:viewMode==='month'?'rgba(99,102,241,0.9)':'rgba(255,255,255,0.07)',border:`1px solid ${viewMode==='month'?'rgba(99,102,241,0.7)':'rgba(255,255,255,0.15)'}`,borderRadius:7,cursor:'pointer',fontSize:11,color:viewMode==='month'?'white':'#a5b4fc',fontFamily:'inherit',fontWeight:700}}>
-                {viewMode==='month'?'📋 목록':'📅 월'}
+                style={{padding:`5px ${screenW < 320 ? '7px' : '10px'}`,background:viewMode==='month'?'rgba(99,102,241,0.9)':'rgba(255,255,255,0.07)',border:`1px solid ${viewMode==='month'?'rgba(99,102,241,0.7)':'rgba(255,255,255,0.15)'}`,borderRadius:7,cursor:'pointer',fontSize:11,color:viewMode==='month'?'white':'#a5b4fc',fontFamily:'inherit',fontWeight:700,whiteSpace:'nowrap'}}>
+                {viewMode==='month' ? (screenW < 320 ? '목록' : '📋 목록') : (screenW < 320 ? '월' : '📅 월')}
               </button>
               {viewMode!=='month' && <>
-                <button onClick={expandAll} style={{padding:'5px 9px',background:'rgba(99,102,241,0.2)',border:'1px solid rgba(99,102,241,0.5)',borderRadius:7,cursor:'pointer',fontSize:11,color:'#c7d2fe',fontFamily:'inherit',fontWeight:700}}>전체펴기</button>
-                <button onClick={collapseAll} style={{padding:'5px 9px',background:'rgba(99,102,241,0.2)',border:'1px solid rgba(99,102,241,0.5)',borderRadius:7,cursor:'pointer',fontSize:11,color:'#c7d2fe',fontFamily:'inherit',fontWeight:700}}>전체접기</button>
+                <button onClick={expandAll} style={{padding:`5px ${screenW < 320 ? '6px' : '9px'}`,background:'rgba(99,102,241,0.2)',border:'1px solid rgba(99,102,241,0.5)',borderRadius:7,cursor:'pointer',fontSize:screenW < 320 ? 10 : 11,color:'#c7d2fe',fontFamily:'inherit',fontWeight:700,whiteSpace:'nowrap'}}>
+                  {screenW < 320 ? '펴기' : '전체펴기'}
+                </button>
+                <button onClick={collapseAll} style={{padding:`5px ${screenW < 320 ? '6px' : '9px'}`,background:'rgba(99,102,241,0.2)',border:'1px solid rgba(99,102,241,0.5)',borderRadius:7,cursor:'pointer',fontSize:screenW < 320 ? 10 : 11,color:'#c7d2fe',fontFamily:'inherit',fontWeight:700,whiteSpace:'nowrap'}}>
+                  {screenW < 320 ? '접기' : '전체접기'}
+                </button>
               </>}
-              <button onClick={onLogout} style={{padding:'5px 10px',background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.25)',borderRadius:7,cursor:'pointer',fontSize:11,color:'#fca5a5',fontFamily:'inherit'}}>로그아웃</button>
+              <button onClick={onLogout} style={{padding:`5px ${screenW < 320 ? '7px' : '10px'}`,background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.25)',borderRadius:7,cursor:'pointer',fontSize:11,color:'#fca5a5',fontFamily:'inherit',whiteSpace:'nowrap'}}>로그아웃</button>
             </div>
           </div>
 
