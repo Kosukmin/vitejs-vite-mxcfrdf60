@@ -107,29 +107,6 @@ const WEEK_HEADERS = (() => {
   return items;
 })();
 
-const DAY_HEADERS = (() => {
-  const items: { day: number; month: number; isFirst: boolean; dateStr: string; isHoliday: boolean; holidayName: string; isSunday: boolean; isSaturday: boolean }[] = [];
-  const base = new Date('2026-01-01T00:00:00');
-  for (let i = 0; i < 365; i++) {
-    const d = new Date(base); d.setDate(d.getDate() + i);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const dateStr = `${y}-${m}-${day}`;
-    const dow = d.getDay();
-    items.push({
-      day: d.getDate(),
-      month: d.getMonth() + 1,
-      isFirst: d.getDate() === 1,
-      dateStr,
-      isHoliday: !!KR_HOLIDAYS_2026[dateStr],
-      holidayName: KR_HOLIDAYS_2026[dateStr] || '',
-      isSunday: dow === 0,
-      isSaturday: dow === 6,
-    });
-  }
-  return items;
-})();
 
 const COLOR_MAP: Record<string, any> = {
   blue:   { bar:'#3b82f6', barLight:'#bfdbfe', text:'#1e40af', border:'#3b82f6', rowBg:'#f8faff' },
