@@ -613,6 +613,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const collapseAll    = () => { setCollapsedGroups(new Set(allGroups)); setProjects(projects.map(p => ({...p, expanded:false}))); };
   const expandAll      = () => { setCollapsedGroups(new Set()); setProjects(projects.map(p => ({...p, expanded:true}))); };
   const updateTask     = (pid: number, tid: number, upd: any) => save(projects.map(p => p.id!==pid ? p : {...p, tasks:p.tasks.map((t:any)=>t.id!==tid?t:{...t,...upd})}));
+void updateTask;
   const deleteTask     = (pid: number, tid: number) => save(projects.map(p => p.id!==pid ? p : {...p, tasks:p.tasks.filter((t:any)=>t.id!==tid)}));
   const deleteProject  = (pid: number) => save(projects.filter(p => p.id!==pid));
   const updateProject  = (pid: number, upd: any) => save(projects.map(p => p.id!==pid ? p : {...p,...upd}));
