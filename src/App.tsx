@@ -1322,7 +1322,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           })}
         </div>
 
-        <div style={{flex:1, display:'flex', flexDirection:'column'}}>
+        <div style={{display:'flex', flexDirection:'column'}}>
           {weeks.map((week, wi) => {
             const ROW_H = weekRowHeights[wi] || (CELL_PAD + MIN_LANES * (LANE_H + LANE_GAP) + 8);
             return (
@@ -1330,7 +1330,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               display:'grid', gridTemplateColumns:GRID_COLS,
               borderBottom:'1px solid #e5e7eb',
               background:'white',
-              flex: 1,
+              height: ROW_H,
               minHeight: ROW_H,
               position:'relative',
             }}>
@@ -1341,7 +1341,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   <div key={di} style={{
                     borderRight: di < 6 ? `1px solid ${isWeekend ? '#e5e7eb' : '#f1f5f9'}` : 'none',
                     minHeight: ROW_H,
-                    height: '100%',
+                    height: ROW_H,
                     background: day?.isHoliday ? 'rgba(254,242,242,0.7)'
                       : day?.isToday ? 'rgba(238,242,255,0.7)'
                       : isSun ? 'rgba(255,245,245,0.4)'
