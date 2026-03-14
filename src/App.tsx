@@ -846,12 +846,12 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     WebkitAppearance:'none' as any, appearance:'none' as any,
     display:'block',
   });
-  // iOS PWA에서 fixed 모달 내 input 키보드 강제 호출
-  const iosFocus = (e: React.TouchEvent<HTMLInputElement|HTMLTextAreaElement>) => {
-    const el = e.currentTarget;
+  // iOS PWA fixed 모달 내 키보드 강제 호출 — readOnly 트릭
+  const iosFocus = (e: React.TouchEvent<any>) => {
+    const el = e.currentTarget as HTMLInputElement | HTMLTextAreaElement;
+    el.readOnly = false;
     el.focus();
-    // iOS가 focus를 무시할 때를 대비해 약간 지연 후 재시도
-    setTimeout(() => el.focus(), 50);
+    setTimeout(() => { el.readOnly = false; el.focus(); }, 100);
   };
 
   const descLineStyle: React.CSSProperties = {
@@ -889,22 +889,9 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const ProjectEditModal = ({ proj, onClose }: any) => {
     const [fd, setFd] = useState({...proj});
-    React.useEffect(() => {
-      // iOS PWA 키보드 호환: touchmove 차단 제거, 스크롤 위치만 고정
-      const scrollY = window.scrollY;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = '100%';
-      return () => {
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
-        window.scrollTo(0, scrollY);
-      };
-    }, []);
     return (
-      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
-        <div style={{background:'white',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:560,maxHeight:'92dvh',display:'flex',flexDirection:'column',boxShadow:'0 -4px 32px rgba(0,0,0,0.25)',touchAction:'pan-y'}} onClick={e=>e.stopPropagation()}>
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50,WebkitOverflowScrolling:'touch' as any}} onClick={onClose}>
+        <div style={{background:'white',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:560,maxHeight:'92dvh',display:'flex',flexDirection:'column',boxShadow:'0 -4px 32px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
           {/* 핸들 + 헤더 고정 */}
           <div style={{padding:'16px 20px 0',flexShrink:0}}>
             <div style={{width:40,height:4,borderRadius:2,background:'#e5e7eb',margin:'0 auto 16px'}}/>
@@ -914,7 +901,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             </div>
           </div>
           {/* 스크롤 영역 */}
-          <div style={{overflowY:'auto',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
+          <div style={{overflowY:'scroll',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
             <div style={{display:'flex',flexDirection:'column',gap:16,paddingBottom:8}}>
               <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>프로젝트 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
@@ -971,21 +958,9 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const TaskEditModal = ({ task, pid, onClose }: any) => {
     const [fd, setFd] = useState({...task});
-    React.useEffect(() => {
-      const scrollY = window.scrollY;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = '100%';
-      return () => {
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
-        window.scrollTo(0, scrollY);
-      };
-    }, []);
     return (
-      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50}} onClick={onClose}>
-        <div style={{background:'white',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:560,maxHeight:'92dvh',display:'flex',flexDirection:'column',boxShadow:'0 -4px 32px rgba(0,0,0,0.25)',touchAction:'pan-y'}} onClick={e=>e.stopPropagation()}>
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:50,WebkitOverflowScrolling:'touch' as any}} onClick={onClose}>
+        <div style={{background:'white',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:560,maxHeight:'92dvh',display:'flex',flexDirection:'column',boxShadow:'0 -4px 32px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
           {/* 핸들 + 헤더 고정 */}
           <div style={{padding:'16px 20px 0',flexShrink:0}}>
             <div style={{width:40,height:4,borderRadius:2,background:'#e5e7eb',margin:'0 auto 16px'}}/>
@@ -995,7 +970,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             </div>
           </div>
           {/* 스크롤 영역 */}
-          <div style={{overflowY:'auto',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
+          <div style={{overflowY:'scroll',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
             <div style={{display:'flex',flexDirection:'column',gap:16,paddingBottom:8}}>
               <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>Task 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
               <div>
