@@ -886,7 +886,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     React.useEffect(() => {
       const el = overlayRef.current;
       if (!el) return;
-      const prevent = (e: TouchEvent) => e.preventDefault();
+      const prevent = (e: TouchEvent) => {
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        e.preventDefault();
+      };
       el.addEventListener('touchmove', prevent, { passive: false });
       return () => el.removeEventListener('touchmove', prevent);
     }, []);
@@ -963,7 +967,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     React.useEffect(() => {
       const el = overlayRef.current;
       if (!el) return;
-      const prevent = (e: TouchEvent) => e.preventDefault();
+      const prevent = (e: TouchEvent) => {
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        e.preventDefault();
+      };
       el.addEventListener('touchmove', prevent, { passive: false });
       return () => el.removeEventListener('touchmove', prevent);
     }, []);
