@@ -826,7 +826,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const today = new Date();
   const todayLeft = today>=V_START && today<=V_END ? Math.round((today.getTime()-V_START.getTime())/86400000/V_TOTAL_DAYS*TIMELINE_W) : null;
-  const modalW = Math.min(500, Math.max(320, window.innerWidth * 0.9));
+  const modalW = Math.min(500, Math.max(320, window.innerWidth * 0.95));
   const inp = (extra={}) => ({width:'100%',border:'1px solid #d1d5db',borderRadius:8,padding:'8px 12px',fontSize:14,boxSizing:'border-box' as const,...extra});
 
   const descLineStyle: React.CSSProperties = {
@@ -866,7 +866,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     const [fd, setFd] = useState({...proj});
     return (
       <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:16}}>
-        <div style={{background:'white',borderRadius:12,padding:24,width:modalW,boxShadow:'0 20px 60px rgba(0,0,0,0.3)',maxHeight:'90vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+        <div style={{background:'white',borderRadius:12,padding:24,width:modalW,boxShadow:'0 20px 60px rgba(0,0,0,0.3)',maxHeight:'calc(90dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
             <h3 style={{fontSize:18,fontWeight:'bold',margin:0}}>프로젝트 편집</h3>
             <button onClick={onClose} style={{border:'none',background:'none',cursor:'pointer',fontSize:20,color:'#9ca3af'}}>✕</button>
@@ -921,7 +921,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     const [fd, setFd] = useState({...task});
     return (
       <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:16}}>
-        <div style={{background:'white',borderRadius:12,padding:24,width:modalW,maxHeight:'90vh',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{background:'white',borderRadius:12,padding:24,width:modalW,maxHeight:'calc(90dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}} onClick={e=>e.stopPropagation()}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
             <h3 style={{fontSize:18,fontWeight:'bold',margin:0}}>Task 편집</h3>
             <button onClick={onClose} style={{border:'none',background:'none',cursor:'pointer',fontSize:20,color:'#9ca3af'}}>✕</button>
@@ -1071,7 +1071,12 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     const isTabletPortrait = deviceType === 'tablet' && isPortrait;
 
     return (
-      <div style={{height:'100dvh',width:'100%',maxWidth:'100vw',display:'flex',flexDirection:'column',background:'#0f0f1a',fontFamily:"'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif",overflow:'hidden',boxSizing:'border-box'}}>
+      <div style={{height:'100dvh',width:'100%',maxWidth:'100vw',display:'flex',flexDirection:'column',background:'#0f0f1a',fontFamily:"'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif",overflow:'hidden',boxSizing:'border-box',
+        paddingTop:'env(safe-area-inset-top)',
+        paddingBottom:'env(safe-area-inset-bottom)',
+        paddingLeft:'env(safe-area-inset-left)',
+        paddingRight:'env(safe-area-inset-right)',
+      }}>
 
         <style>{`
           @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -1652,7 +1657,12 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   );
 
   return (
-    <div style={{height:'100dvh',width:'100%',background:'#eef0f5',display:'flex',flexDirection:'column',overflow:'hidden',fontFamily:"'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif"}}>
+    <div style={{height:'100dvh',width:'100%',background:'#eef0f5',display:'flex',flexDirection:'column',overflow:'hidden',fontFamily:"'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif",
+      paddingTop:'env(safe-area-inset-top)',
+      paddingBottom:'env(safe-area-inset-bottom)',
+      paddingLeft:'env(safe-area-inset-left)',
+      paddingRight:'env(safe-area-inset-right)',
+    }}>
       <style>{`
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         @keyframes spin{to{transform:rotate(360deg)}}
