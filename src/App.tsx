@@ -78,11 +78,9 @@ const calcLayout = (mode: ViewMode, screenW: number, deviceType: string = 'deskt
     colW = Math.floor(availW / 12);
     totalTimelineW = colW * 12;
   } else if (mode === 'quarter') {
-    // 한 화면에 13주(1분기)가 딱 맞게 → availW ÷ 13
     colW = Math.max(40, Math.floor(availW / 13));
     totalTimelineW = colW * 52;
   } else {
-    // day
     colW = DAY_COL_W;
     totalTimelineW = DAY_COL_W * 365;
   }
@@ -298,11 +296,9 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const currentApp = APP_CONFIG[appId];
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    // 터치 기기 중 폰/폴드(접힘)는 월뷰 기본값
     if (typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
       const w = window.innerWidth, h = window.innerHeight;
       const short = Math.min(w,h), long = Math.max(w,h);
-      // 태블릿/폴드오픈은 간트뷰 → year, 폰/폴드접힘은 month
       if (short >= 600 && long/short < 2.0) return 'year';
       return 'month';
     }
@@ -391,7 +387,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [uploadPreview, setUploadPreview]     = useState<any[]|null>(null);
   const [uploadError, setUploadError]         = useState<string>('');
-  const [calMonth, setCalMonth]               = useState<number>(() => new Date().getMonth() + 1); // 1~12
+  const [calMonth, setCalMonth]               = useState<number>(() => new Date().getMonth() + 1);
 
   const dragRef      = useRef<any>(null);
   const rowDragRef   = useRef<any>(null);
@@ -432,7 +428,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     const el = chartScrollRef.current;
     if (!el) return;
     const q = QUARTERS[qIndex];
-    // MONTH_COL = 동적 colW (분기 모드에서 availW/13)
     const targetScrollLeft = q.startWeek * MONTH_COL;
     el.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
   }, [MONTH_COL]);
@@ -536,10 +531,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   useEffect(() => {
     setProjects([]);
-    // 앱 전환 시 년보기 + 전체 접기 초기화
-    // 앱 전환 시 뷰모드 리셋 — 모바일 폰/폴드는 month, 나머지는 year
     setViewMode(!showGantt ? 'month' : 'year');
-    setCollapsedGroups(new Set(['__all__'])); // 로드 후 collapseAll 트리거용 sentinel
+    setCollapsedGroups(new Set(['__all__']));
     load();
     const channel = supabase.channel(currentApp.channel)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'gantt_projects', filter: `id=eq.${appId}` },
@@ -563,7 +556,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       const { data, error } = await supabase.from('gantt_projects').select('data').eq('id', appId).single();
       if (!error && data) {
         const loaded: any[] = data.data || [];
-        // 로드 완료 시 모든 프로젝트 접기 + 모든 그룹 접기
         const allGrps = Array.from(new Set(loaded.map((p: any) => p.group || '미분류')));
         setCollapsedGroups(new Set(allGrps));
         setProjects(loaded.map((p: any) => ({ ...p, expanded: false })));
@@ -846,12 +838,13 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     WebkitAppearance:'none' as any, appearance:'none' as any,
     display:'block',
   });
-  // iOS PWA fixed 모달 내 키보드 강제 호출 — readOnly 트릭
+
+  // ── iOS PWA 키보드 강제 호출 (touchstart + rAF 조합) ──────────
   const iosFocus = (e: React.TouchEvent<any>) => {
     const el = e.currentTarget as HTMLInputElement | HTMLTextAreaElement;
-    el.readOnly = false;
+    e.preventDefault();
     el.focus();
-    setTimeout(() => { el.readOnly = false; el.focus(); }, 100);
+    requestAnimationFrame(() => el.focus());
   };
 
   const descLineStyle: React.CSSProperties = {
@@ -903,10 +896,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           {/* 스크롤 영역 */}
           <div style={{overflowY:'scroll',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
             <div style={{display:'flex',flexDirection:'column',gap:16,paddingBottom:8}}>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>프로젝트 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>프로젝트 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} onTouchStart={iosFocus as any} /></div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (정)</label><input value={fd.owner||''} onChange={e=>setFd({...fd,owner:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (부)</label><input value={fd.subOwner||''} onChange={e=>setFd({...fd,subOwner:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (정)</label><input value={fd.owner||''} onChange={e=>setFd({...fd,owner:e.target.value})} style={inp()} onTouchStart={iosFocus as any} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>오너 (부)</label><input value={fd.subOwner||''} onChange={e=>setFd({...fd,subOwner:e.target.value})} style={inp()} onTouchStart={iosFocus as any} /></div>
               </div>
               <div>
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>그룹</label>
@@ -918,7 +911,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   <button type="button" onClick={()=>setFd({...fd,group:''})}
                     style={{padding:'6px 14px',borderRadius:20,fontSize:13,cursor:'pointer',fontWeight:fd.group===''||fd.group==='미분류'?600:400,border:fd.group===''||fd.group==='미분류'?'2px solid #9ca3af':'2px solid #e5e7eb',background:fd.group===''||fd.group==='미분류'?'#f3f4f6':'white',color:'#6b7280'}}>미분류</button>
                 </div>
-                <input value={(!allGroups.filter(g=>g!=='미분류').includes(fd.group) && fd.group && fd.group!=='미분류') ? fd.group : ''} onChange={e=>setFd({...fd,group:e.target.value})} placeholder="+ 새 그룹 직접 입력" style={{...inp(),fontSize:13}} onTouchEnd={iosFocus as any} />
+                <input value={(!allGroups.filter(g=>g!=='미분류').includes(fd.group) && fd.group && fd.group!=='미분류') ? fd.group : ''} onChange={e=>setFd({...fd,group:e.target.value})} placeholder="+ 새 그룹 직접 입력" style={{...inp(),fontSize:13}} onTouchStart={iosFocus as any} />
               </div>
               <div>
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>카테고리</label>
@@ -931,11 +924,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 <div style={{display:'flex',flexDirection:'column',gap:10}}>
                   <div>
                     <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>시작일</label>
-                    <input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} onTouchEnd={iosFocus as any} />
+                    <input type="date" value={fd.startDate||''} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} onTouchStart={iosFocus as any} />
                   </div>
                   <div>
                     <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>종료일</label>
-                    <input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} onTouchEnd={iosFocus as any} />
+                    <input type="date" value={fd.endDate||''} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} onTouchStart={iosFocus as any} />
                   </div>
                 </div>
               </div>
@@ -943,7 +936,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률 <span style={{color:'#3b82f6',fontWeight:'bold',marginLeft:8}}>{fd.progress||0}%</span></label>
                 <input type="range" min="0" max="100" value={fd.progress||0} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} />
               </div>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} onTouchEnd={iosFocus as any} /></div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} onTouchStart={iosFocus as any} /></div>
             </div>
           </div>
           {/* 버튼 하단 고정 */}
@@ -972,7 +965,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           {/* 스크롤 영역 */}
           <div style={{overflowY:'scroll',flex:1,padding:'0 20px',WebkitOverflowScrolling:'touch' as any}}>
             <div style={{display:'flex',flexDirection:'column',gap:16,paddingBottom:8}}>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>Task 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>Task 이름</label><input value={fd.name} onChange={e=>setFd({...fd,name:e.target.value})} style={inp()} onTouchStart={iosFocus as any} /></div>
               <div>
                 <label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:8}}>카테고리</label>
                 <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
@@ -981,18 +974,18 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (정)</label><input value={fd.assignee||''} onChange={e=>setFd({...fd,assignee:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
-                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (부)</label><input value={fd.subAssignee||''} onChange={e=>setFd({...fd,subAssignee:e.target.value})} style={inp()} onTouchEnd={iosFocus as any} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (정)</label><input value={fd.assignee||''} onChange={e=>setFd({...fd,assignee:e.target.value})} style={inp()} onTouchStart={iosFocus as any} /></div>
+                <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>담당자 (부)</label><input value={fd.subAssignee||''} onChange={e=>setFd({...fd,subAssignee:e.target.value})} style={inp()} onTouchStart={iosFocus as any} /></div>
               </div>
-              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} onTouchEnd={iosFocus as any} /></div>
+              <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>설명</label><textarea value={fd.description||''} onChange={e=>setFd({...fd,description:e.target.value})} style={{...inp(),height:80,resize:'vertical'} as any} onTouchStart={iosFocus as any} /></div>
               <div style={{display:'flex',flexDirection:'column',gap:10}}>
                 <div>
                   <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>시작일</label>
-                  <input type="date" value={fd.startDate} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} onTouchEnd={iosFocus as any} />
+                  <input type="date" value={fd.startDate} onChange={e=>setFd({...fd,startDate:e.target.value})} style={dateInp()} onTouchStart={iosFocus as any} />
                 </div>
                 <div>
                   <label style={{display:'block',fontSize:12,color:'#6366f1',fontWeight:600,marginBottom:5}}>종료일</label>
-                  <input type="date" value={fd.endDate} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} onTouchEnd={iosFocus as any} />
+                  <input type="date" value={fd.endDate} onChange={e=>setFd({...fd,endDate:e.target.value})} style={dateInp()} onTouchStart={iosFocus as any} />
                 </div>
               </div>
               <div><label style={{display:'block',fontSize:14,fontWeight:500,marginBottom:4}}>진행률: <span style={{color:'#3b82f6',fontWeight:'bold'}}>{fd.progress}%</span></label><input type="range" min="0" max="100" value={fd.progress} onChange={e=>setFd({...fd,progress:Number(e.target.value)})} style={{width:'100%'}} /></div>
@@ -1102,24 +1095,16 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const totalW = LEFT_COL + ASSIGNEE_COL + SUB_COL + TIMELINE_W;
 
-  // ────────────────────────────────────────────────────────────
-  // 모바일 / 태블릿 세로 → 카드형 뷰
-  // ────────────────────────────────────────────────────────────
-
   // ── 월 캘린더 뷰 컴포넌트 ────────────────────────────────────
   const MonthCalendarView = ({ calMonth, setCalMonth, filtered, todayStr2, onEditTask }: any) => {
-    // ── 로컬 tooltip (부모 리렌더 차단) ─────────────────────────
     const [localTooltip, setLocalTooltip] = React.useState<any>(null);
     const [localTooltipPos, setLocalTooltipPos] = React.useState({ x:0, y:0 });
     const localTooltipTimer = React.useRef<ReturnType<typeof setTimeout>|null>(null);
 
-    // 일 월 화 수 목 금 토 순서
     const WEEKDAYS_ALL = ['일','월','화','수','목','금','토'];
     const year = 2026;
-    // 일 0.3fr, 월~금 1fr, 토 0.3fr
     const GRID_COLS = '0.3fr 1fr 1fr 1fr 1fr 1fr 0.3fr';
     const SAT_SUN_RATIO = 0.3;
-    // 전체 유닛: 일(0.3) + 월~금(5) + 토(0.3) = 5.6
     const TOTAL_UNITS = SAT_SUN_RATIO + 5 + SAT_SUN_RATIO;
 
     const getDaysInMonth = (m: number) => {
@@ -1134,7 +1119,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       return days;
     };
 
-    // 주 단위로 묶기 — index 0=일, 1=월, ..., 5=금, 6=토
     const buildWeeks = (m: number) => {
       const allDays = getDaysInMonth(m);
       const allDaysMap: Record<string, typeof allDays[0]> = {};
@@ -1144,7 +1128,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       const firstDate = new Date(year, m - 1, 1);
       let startSun = new Date(firstDate);
       const dow = firstDate.getDay();
-      startSun.setDate(startSun.getDate() - dow); // 해당 주 일요일로
+      startSun.setDate(startSun.getDate() - dow);
 
       const lastDate = new Date(year, m, 0);
       let endSat = new Date(lastDate);
@@ -1166,7 +1150,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
     const weeks = buildWeeks(calMonth);
 
-    // Task 바 빌드 — 월~금은 week index 1~5
     const buildTaskBars = () => {
       const result: any[][] = weeks.map(() => []);
       filtered.forEach((proj: any) => {
@@ -1222,7 +1205,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
     const taskBars = React.useMemo(() => buildTaskBars(), [calMonth, filtered]);
 
-    // 주별 독립 ROW_H — useMemo로 tooltip 리렌더 시 재계산 방지
     const LANE_H   = 24;
     const LANE_GAP = 3;
     const CELL_PAD = 28;
@@ -1236,14 +1218,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
     const calScrollRef = React.useRef<HTMLDivElement>(null);
 
-    // colStart(1~5=월~금) → 전체 그리드 기준 left unit
-    // 일(0.3) + (colStart-1)*1
     const colToLeftUnit = (ci: number) => SAT_SUN_RATIO + (ci - 1);
 
     return (
       <>
       <div ref={calScrollRef} style={{flex:1,overflowY:'auto',background:'#f8fafc',display:'flex',flexDirection:'column'}}>
-        {/* 월 네비게이션 */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',background:'white',borderBottom:'1px solid #e5e7eb',flexShrink:0,gap:8}}>
           <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
             <button onClick={()=>setCalMonth((m: number)=>Math.max(1,m-1))} disabled={calMonth===1}
@@ -1279,7 +1258,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           </div>
         </div>
 
-        {/* 요일 헤더 — 일 월 화 수 목 금 토 */}
         <div style={{display:'grid',gridTemplateColumns:GRID_COLS,borderBottom:'2px solid #e2e8f0',background:'white',flexShrink:0}}>
           {WEEKDAYS_ALL.map((wd, i) => {
             const isSun = i === 0, isSat = i === 6;
@@ -1296,7 +1274,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           })}
         </div>
 
-        {/* 주 행들 — flex:1로 남은 화면 높이 균등 분배 */}
         <div style={{flex:1, display:'flex', flexDirection:'column'}}>
           {weeks.map((week, wi) => {
             const ROW_H = weekRowHeights[wi] || (CELL_PAD + MIN_LANES * (LANE_H + LANE_GAP) + 8);
@@ -1309,7 +1286,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               minHeight: ROW_H,
               position:'relative',
             }}>
-              {/* 날짜 셀 — 0=일, 1~5=월~금, 6=토 */}
               {week.map((day, di) => {
                 const isSun = di === 0, isSat = di === 6;
                 const isWeekend = isSun || isSat;
@@ -1362,7 +1338,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 );
               })}
 
-              {/* Task 바 오버레이 */}
               {taskBars[wi].map((bar: any, bi: number) => {
                 const topOffset = CELL_PAD + bar.lane * (LANE_H + LANE_GAP);
                 const prog = bar.task.progress || 0;
@@ -1408,13 +1383,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   >
                     <div style={{position:'absolute',left:0,top:0,width:`${prog}%`,height:'100%',background:barBg,borderRadius:'inherit',opacity:0.85,pointerEvents:'none'}}/>
                     {bar.isStart ? (
-                      /* 시작 주: 이름 + 진행률 */
                       <span style={{position:'relative',zIndex:1,fontSize:11,fontWeight:700,color:prog>40?'white':'#1f2937',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',paddingLeft:8,paddingRight:4,textShadow:prog>40?'0 1px 2px rgba(0,0,0,0.3)':'none',lineHeight:1,maxWidth:'100%'}}>
                         {bar.task.name}
                         {prog > 0 && <span style={{marginLeft:4,fontWeight:600,opacity:0.85}}>{prog}%</span>}
                       </span>
                     ) : (
-                      /* 이어지는 주: 점선 + 이름 반복 */
                       <>
                         <div style={{position:'relative',zIndex:1,width:3,height:'60%',borderLeft:'2px dashed rgba(255,255,255,0.7)',marginLeft:4,flexShrink:0}}/>
                         <span style={{position:'relative',zIndex:1,fontSize:11,fontWeight:600,color:prog>40?'rgba(255,255,255,0.85)':'rgba(31,41,55,0.7)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',paddingLeft:6,paddingRight:4,lineHeight:1,maxWidth:'100%',fontStyle:'italic'}}>
@@ -1431,7 +1404,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
         </div>
       </div>
 
-      {/* 로컬 툴팁 — 부모 state 건드리지 않아서 스크롤 튀기 없음 */}
       {localTooltip && (
         <div style={{position:'fixed',left:localTooltipPos.x+14,top:localTooltipPos.y-8,background:'#111827',color:'white',fontSize:13,padding:'10px 14px',borderRadius:8,whiteSpace:'nowrap',pointerEvents:'none',zIndex:99999,boxShadow:'0 4px 16px rgba(0,0,0,0.45)',lineHeight:1.7,border:'1px solid rgba(255,255,255,0.08)'}}>
           {localTooltip.name && <div style={{fontWeight:700,marginBottom:4,color:'#f1f5f9',fontSize:14}}>{localTooltip.name}</div>}
@@ -1449,8 +1421,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       </>
     );
   };
-
-  // ── 분기보기 헤더 렌더링 ────────────────────────────────────
 
   if (!showGantt) {
     const getMiniPos = (s: string, e: string) => {
@@ -1518,7 +1488,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             <div style={{display:'flex',alignItems:'center',gap:screenW < 320 ? 3 : 6,flexShrink:0}}>
               {saving && <div style={{display:'flex',alignItems:'center',gap:4,fontSize:10,color:'#4ade80'}}><div style={{width:8,height:8,border:'2px solid #4ade80',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>저장중</div>}
               {realtimeToast && <span style={{fontSize:10,color:'#4ade80',fontWeight:600,animation:'fadeInDown 0.3s ease'}}>🔄</span>}
-              {/* 월보기 토글 버튼 */}
               <button onClick={()=>setViewMode(viewMode==='month'?'year':'month')}
                 style={{padding:`5px ${screenW < 320 ? '7px' : '10px'}`,background:viewMode==='month'?'rgba(99,102,241,0.9)':'rgba(255,255,255,0.07)',border:`1px solid ${viewMode==='month'?'rgba(99,102,241,0.7)':'rgba(255,255,255,0.15)'}`,borderRadius:7,cursor:'pointer',fontSize:11,color:viewMode==='month'?'white':'#a5b4fc',fontFamily:'inherit',fontWeight:700,whiteSpace:'nowrap'}}>
                 {viewMode==='month' ? (screenW < 320 ? '목록' : '📋 목록') : (screenW < 320 ? '월' : '📅 월')}
@@ -1671,9 +1640,9 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               })}
             </div>
           ))}
-        </div>}  {/* viewMode !== 'month' 카드뷰 끝 */}
+        </div>}
 
-        {/* FAB — 월보기 아닐 때만 */}
+        {/* FAB */}
         {viewMode !== 'month' && <button onClick={addProject} style={{
           position:'fixed',
           bottom:'max(24px, calc(env(safe-area-inset-bottom) + 16px))',
@@ -1692,13 +1661,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     );
   }
 
-  // ────────────────────────────────────────────────────────────
-  // 데스크탑 / 태블릿 가로 → 간트차트 뷰
-  // ────────────────────────────────────────────────────────────
+  // ── 데스크탑 / 태블릿 가로 → 간트차트 뷰 ──────────────────
 
   const QuarterHeader = () => (
     <div style={{position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'2px solid #e2e8f0',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW}}>
-      {/* 월 행 */}
       <div style={{display:'flex',height:22,borderBottom:'1px solid #e8ecf8'}}>
         <div style={{width:isCompactUI?22:LEFT_COL+ASSIGNEE_COL+SUB_COL,minWidth:isCompactUI?22:LEFT_COL+ASSIGNEE_COL+SUB_COL,flexShrink:0,background:'#f9fafb',borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:10}} />
         <div style={{display:'flex',width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,overflow:'hidden'}}>
@@ -1717,7 +1683,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           ))}
         </div>
       </div>
-      {/* 주(W) 행 */}
       <div style={{display:'flex',height:22}}>
         {isCompactUI ? (
           <div style={{width:22,minWidth:22,flexShrink:0,background:'#f9fafb',borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:10}} />
@@ -1773,13 +1738,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 ))}
               </div>
               <div style={{width:1,height:18,background:'rgba(255,255,255,0.15)'}}/>
-              {/* ── 뷰모드 + 분기점프 통합 버튼 (컴팩트) ── */}
               <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.07)',borderRadius:8,padding:2,border:'1px solid rgba(255,255,255,0.12)',gap:0}}>
                 <button onClick={()=>switchViewMode('year')}
                   style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='year'?700:400,background:viewMode==='year'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='year'?'white':'rgba(148,163,184,0.8)'}}>년</button>
                 <button onClick={()=>switchViewMode('quarter')}
                   style={{padding:'4px 9px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='quarter'?700:400,background:viewMode==='quarter'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='quarter'?'white':'rgba(148,163,184,0.8)'}}>분기</button>
-                {/* 1Q~4Q 인라인 */}
                 <div style={{display:'flex',borderLeft:'1px solid rgba(255,255,255,0.1)',marginLeft:1,paddingLeft:1}}>
                   {QUARTERS.map((q,i)=>(
                     <button key={q.label}
@@ -1864,20 +1827,16 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               <input type="file" accept=".xlsx,.xls" onChange={handleImportXLSX} style={{display:'none'}} />
             </label>
 
-            {/* ── 뷰모드 + 분기점프 통합 버튼 ── */}
             <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.07)',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',padding:2,gap:1}}>
               <span style={{fontSize:10,color:'rgba(148,163,184,0.5)',padding:'0 4px',userSelect:'none'}}>🔍</span>
-              {/* 년 */}
               <button onClick={()=>switchViewMode('year')} title="연간 전체 보기"
                 style={{height:26,padding:'0 12px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='year'?700:400,background:viewMode==='year'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='year'?'white':'rgba(148,163,184,0.8)',transition:'all 0.15s'}}>
                 년
               </button>
-              {/* 분기 + 1Q~4Q 인라인 */}
               <button onClick={()=>switchViewMode('quarter')} title="분기별 주단위 보기"
                 style={{height:26,padding:'0 10px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='quarter'?700:400,background:viewMode==='quarter'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='quarter'?'white':'rgba(148,163,184,0.8)',transition:'all 0.15s'}}>
                 분기
               </button>
-              {/* 1Q~4Q — 분기 버튼 바로 옆에 */}
               <div style={{display:'flex',alignItems:'center',gap:0,borderLeft:'1px solid rgba(255,255,255,0.1)',marginLeft:1,paddingLeft:1}}>
                 {QUARTERS.map((q,i)=>(
                   <button key={q.label}
@@ -1893,7 +1852,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   </button>
                 ))}
               </div>
-              {/* 월 */}
               <div style={{borderLeft:'1px solid rgba(255,255,255,0.1)',marginLeft:1,paddingLeft:1}}>
                 <button onClick={()=>switchViewMode('month')} title="월 캘린더 보기"
                   style={{height:26,padding:'0 12px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='month'?700:400,background:viewMode==='month'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='month'?'white':'rgba(148,163,184,0.8)',transition:'all 0.15s'}}>
@@ -1911,7 +1869,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           </div>
         </div>
 
-        {/* 카테고리 + 그룹 필터 */}
         <div style={{display:'flex',gap:6,marginTop:12,alignItems:'center',flexWrap:'wrap'}}>
           <span style={{fontSize:12,color:'#e2e8f0',flexShrink:0,fontWeight:600}}>카테고리:</span>
           <button onClick={()=>setActiveCategories([])} style={{padding:'5px 14px',borderRadius:20,fontSize:12,cursor:'pointer',fontWeight:activeCategories.length===0?600:400,border:activeCategories.length===0?'1.5px solid #818cf8':'1.5px solid rgba(255,255,255,0.4)',background:activeCategories.length===0?'rgba(99,102,241,0.35)':'rgba(255,255,255,0.12)',color:activeCategories.length===0?'#fff':'#e2e8f0'}}>전체 <span style={{marginLeft:2,fontSize:11,opacity:0.9}}>{projects.length}</span></button>
@@ -1935,12 +1892,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           </>}
         </div>
 
-        {/* Legend */}
         <div style={{display:'flex',alignItems:'center',gap:16,marginTop:10,flexWrap:'wrap',paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.15)'}}>
           <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
             <div style={{display:'flex',alignItems:'center',gap:5}}><div style={{width:10,height:10,borderRadius:'50%',background:'#f87171'}} /><span style={{fontSize:12,color:'#e2e8f0'}}>오늘</span></div>
             <div style={{display:'flex',alignItems:'center',gap:5}}><div style={{width:28,height:9,borderRadius:3,background:'linear-gradient(to right,#3b82f6 50%,#bfdbfe 50%)'}} /><span style={{fontSize:12,color:'#e2e8f0'}}>진행률</span></div>
-            {viewMode === 'month' && <></>}
             <span style={{fontSize:12,color:'#94a3b8'}}>⠿ 드래그로 순서 변경 | 바 드래그로 일정 조정 | 그룹명 더블클릭 이름 변경</span>
           </div>
           <div style={{flex:1}}/>
@@ -1953,7 +1908,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
         )}
       </div>
 
-      {/* ── 월 캘린더 뷰 ────────────────────────────────────────── */}
+      {/* 월 캘린더 뷰 */}
       {viewMode === 'month' && <MonthCalendarView
         calMonth={calMonth}
         setCalMonth={setCalMonth}
@@ -1965,11 +1920,9 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       {/* Chart (년/분기 모드) */}
       {viewMode !== 'month' && <div ref={chartScrollRef} style={{overflowX:'auto',overflowY:'auto',flex:1}}>
         <div style={{minWidth:totalW}}>
-          {/* Column Header */}
           {viewMode === 'quarter' ? (
             <QuarterHeader />
           ) : (
-            // year 모드
             <div style={{display:'flex',position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW,height:42}}>
               {isCompactUI ? (
                 <div style={{width:22,minWidth:22,flexShrink:0,background:'#f9fafb',borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:10}} />
@@ -1984,7 +1937,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             </div>
           )}
 
-          {/* Rows */}
           <div style={{width:totalW}}>
             {groupedFiltered.length===0 ? (
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'96px 0',color:'#9ca3af',fontSize:14,gap:12}}>
@@ -2256,7 +2208,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             ))}
           </div>
         </div>
-      </div>}  {/* viewMode !== 'month' Chart 끝 */}
+      </div>}
 
       {tooltip && (tooltip.holidayOnly || tooltip.descOnly || tooltip.startDate) && (
         <div style={{position:'fixed',left:tooltipPos.x+14,top:tooltipPos.y-8,background:'#111827',color:'white',fontSize:13,padding:'10px 14px',borderRadius:8,whiteSpace:'nowrap',pointerEvents:'none',zIndex:99999,boxShadow:'0 4px 16px rgba(0,0,0,0.45)',lineHeight:1.7,border:'1px solid rgba(255,255,255,0.08)'}}>
