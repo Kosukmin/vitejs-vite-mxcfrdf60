@@ -826,7 +826,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
   const today = new Date();
   const todayLeft = today>=V_START && today<=V_END ? Math.round((today.getTime()-V_START.getTime())/86400000/V_TOTAL_DAYS*TIMELINE_W) : null;
-  const modalW = Math.min(500, Math.max(320, window.innerWidth * 0.95));
   const inp = (extra={}) => ({width:'100%',maxWidth:'100%',border:'1px solid #d1d5db',borderRadius:8,padding:'8px 12px',fontSize:14,boxSizing:'border-box' as const,...extra});
 
   const descLineStyle: React.CSSProperties = {
