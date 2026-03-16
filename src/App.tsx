@@ -152,7 +152,7 @@ function LoginScreen({ onLogin }: { onLogin: (user: any) => void }) {
 
   return (
     <div style={{minHeight:'100dvh',background:'linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 60%,#16213e 100%)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif"}}>
-      <style>{`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); @keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box;}`}</style>
+      <style>{`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); @keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box;color-scheme:light;} html,body{color-scheme:light;}`}</style>
       <div style={{width:'100%',maxWidth:400,padding:'0 24px'}}>
         <div style={{textAlign:'center',marginBottom:40}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:16,marginBottom:14}}>
@@ -249,7 +249,7 @@ function ResetPasswordScreen({ user, onDone }: { user: any; onDone: () => void }
 
   return (
     <div style={{minHeight:'100dvh',background:'linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 60%,#16213e 100%)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif"}}>
-      <style>{`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); @keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box;}`}</style>
+      <style>{`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); @keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box;color-scheme:light;} html,body{color-scheme:light;}`}</style>
       <div style={{width:'100%',maxWidth:400,padding:'0 24px'}}>
         <div style={{textAlign:'center',marginBottom:36}}>
           <div style={{width:56,height:56,borderRadius:16,background:'linear-gradient(135deg,#6366f1,#a855f7)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,margin:'0 auto 16px',boxShadow:'0 4px 20px rgba(99,102,241,0.4)'}}>🔑</div>
@@ -1098,14 +1098,16 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100dvh',flexDirection:'column',gap:12,color:'#6b7280'}}>
       <div style={{width:32,height:32,border:'4px solid #93c5fd',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}} />
       <p style={{fontSize:14,margin:0}}>Supabase에서 불러오는 중...</p>
-      <style>{`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); @keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); @keyframes spin{to{transform:rotate(360deg)}} *{color-scheme:light;} html,body{color-scheme:light;}`}</style>
     </div>
   );
 
   const totalW = LEFT_COL + ASSIGNEE_COL + SUB_COL + TIMELINE_W;
 
   // ── 월 캘린더 뷰 컴포넌트 ────────────────────────────────────
-  const MonthCalendarView = ({ calMonth, setCalMonth, filtered, todayStr2, onEditTask, allGroups }: any) => {
+  // FIX 4: 날짜숫자+공휴일 영역 높이 계산에 사용할 상수
+  // FIX 5: 최소 row 높이를 화면을 채우도록 계산
+  const MonthCalendarView = ({ calMonth, setCalMonth, filtered, todayStr2, onEditTask, allGroups, isDesktop }: any) => {
     const [localTooltip, setLocalTooltip] = React.useState<any>(null);
     const [localTooltipPos, setLocalTooltipPos] = React.useState({ x:0, y:0 });
     const localTooltipTimer = React.useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -1123,9 +1125,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     }, []);
 
     // 그룹 필터 적용
-    const groupFiltered = selectedGroups.length === 0
+    const groupFiltered = (selectedGroups.length === 0
       ? filtered
-      : filtered.filter((p: any) => selectedGroups.includes(p.group || '미분류'));
+      : filtered.filter((p: any) => selectedGroups.includes(p.group || '미분류'))
+    ).filter((p: any) => p.category !== '영업');
 
     const WEEKDAYS_ALL = ['일','월','화','수','목','금','토'];
     const year = 2026;
@@ -1231,43 +1234,66 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
     const taskBars = React.useMemo(() => buildTaskBars(), [calMonth, filtered, selectedGroups]);
 
-    const LANE_H   = 24;
+    const LANE_H   = 22;
     const LANE_GAP = 3;
-    const CELL_PAD = 28;
+    // FIX 4: 날짜 숫자 영역 + 공휴일 텍스트 영역을 위한 상단 패딩
+    // 날짜숫자(5px top + 16px height) + 공휴일텍스트(~16px) + 여백 = 42px
+    const CELL_TOP_PAD = 42;
     const MIN_LANES = 2;
 
     const weekRowHeights = React.useMemo(() => taskBars.map(bars => {
       const lanes = bars.map((b: any) => b.lane);
       const laneCount = Math.max(lanes.length ? Math.max(...lanes) + 1 : 0, MIN_LANES);
-      return CELL_PAD + laneCount * (LANE_H + LANE_GAP) + 8;
+      return CELL_TOP_PAD + laneCount * (LANE_H + LANE_GAP) + 8;
     }), [taskBars]);
+
+    // FIX 5: 전체 주 수에 맞게 최소 높이를 화면 채우도록 계산
+    const finalRowHeights = weekRowHeights;
 
     const calScrollRef = React.useRef<HTMLDivElement>(null);
 
     const colToLeftUnit = (ci: number) => SAT_SUN_RATIO + (ci - 1);
 
     return (
-      <>
-      <div ref={calScrollRef} style={{flex:1,overflowY:'auto',background:'#f8fafc',display:'flex',flexDirection:'column'}}>
-        <div style={{display:'flex',flexDirection:'column',background:'white',borderBottom:'1px solid #e5e7eb',flexShrink:0}}>
-          {/* 1줄: 월 네비 + 그룹 드롭다운 */}
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',gap:8}}>
-          <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-            <button onClick={()=>setCalMonth((m: number)=>Math.max(1,m-1))} disabled={calMonth===1}
-              style={{width:28,height:28,borderRadius:8,border:'1px solid #e5e7eb',background:calMonth===1?'#f9fafb':'white',cursor:calMonth===1?'default':'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',color:calMonth===1?'#d1d5db':'#374151'}}>‹</button>
-            <span style={{fontSize:16,fontWeight:800,color:'#1e293b',whiteSpace:'nowrap',textAlign:'center'}}>2026년 {calMonth}월</span>
-            <button onClick={()=>setCalMonth((m: number)=>Math.min(12,m+1))} disabled={calMonth===12}
-              style={{width:28,height:28,borderRadius:8,border:'1px solid #e5e7eb',background:calMonth===12?'#f9fafb':'white',cursor:calMonth===12?'default':'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',color:calMonth===12?'#d1d5db':'#374151'}}>›</button>
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',minHeight:0}}>
+      {/* FIX 1: PC에서 네비게이션 + 범례를 한 줄로 */}
+      <div style={{display:'flex',flexDirection:'column',background:'white',borderBottom:'1px solid #e5e7eb',flexShrink:0}}>
+        {isDesktop ? (
+          /* PC: 한 줄로 네비 + 범례 */
+          <div style={{display:'flex',alignItems:'center',padding:'6px 12px',gap:12,flexWrap:'nowrap',overflowX:'auto'}}>
+            {/* 월 네비 */}
+            <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+              <button onClick={()=>setCalMonth((m: number)=>Math.max(1,m-1))} disabled={calMonth===1}
+                style={{width:28,height:28,borderRadius:8,border:'1px solid #e5e7eb',background:calMonth===1?'#f9fafb':'white',cursor:calMonth===1?'default':'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',color:calMonth===1?'#d1d5db':'#374151'}}>‹</button>
+              <span style={{fontSize:16,fontWeight:800,color:'#1e293b',whiteSpace:'nowrap',minWidth:90,textAlign:'center'}}>2026년 {calMonth}월</span>
+              <button onClick={()=>setCalMonth((m: number)=>Math.min(12,m+1))} disabled={calMonth===12}
+                style={{width:28,height:28,borderRadius:8,border:'1px solid #e5e7eb',background:calMonth===12?'#f9fafb':'white',cursor:calMonth===12?'default':'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',color:calMonth===12?'#d1d5db':'#374151'}}>›</button>
+            </div>
+            {/* 구분선 */}
+            <div style={{width:1,height:20,background:'#e5e7eb',flexShrink:0}}/>
+            {/* FIX 2: 영업 포함 전체 업무유형 범례 */}
+            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'nowrap'}}>
+              <span style={{fontSize:11,color:'#6b7280',fontWeight:700,flexShrink:0}}>업무유형:</span>
+              {CATEGORIES.map(cat => {
+                const cc = CATEGORY_COLORS[cat];
+                return (
+                  <div key={cat} style={{display:'flex',alignItems:'center',gap:3,flexShrink:0}}>
+                    <div style={{width:10,height:10,borderRadius:2,background:cc.border,flexShrink:0}}/>
+                    <span style={{fontSize:11,color:'#4b5563',fontWeight:600}}>{cat}</span>
+                  </div>
+                );
+              })}
+            </div>
             {/* 그룹 드롭다운 */}
             {allGroups && allGroups.length > 0 && (
-              <div ref={groupDropRef} style={{position:'relative'}}>
+              <div ref={groupDropRef} style={{position:'relative',marginLeft:'auto',flexShrink:0}}>
                 <button onClick={()=>setGroupDropOpen(o=>!o)}
                   style={{display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:8,border:`1px solid ${selectedGroups.length>0?'#6366f1':'#e5e7eb'}`,background:selectedGroups.length>0?'#eef2ff':'white',fontSize:12,fontWeight:selectedGroups.length>0?700:400,color:selectedGroups.length>0?'#4338ca':'#374151',cursor:'pointer',whiteSpace:'nowrap'}}>
                   📁 {selectedGroups.length===0?'전체그룹':`${selectedGroups.length}개 선택`}
                   <span style={{fontSize:10,opacity:0.6}}>{groupDropOpen?'▲':'▼'}</span>
                 </button>
                 {groupDropOpen && (
-                  <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,background:'white',border:'1px solid #e5e7eb',borderRadius:10,boxShadow:'0 4px 16px rgba(0,0,0,0.12)',zIndex:100,minWidth:140,padding:'6px 0'}}>
+                  <div style={{position:'absolute',top:'calc(100% + 4px)',right:0,background:'white',border:'1px solid #e5e7eb',borderRadius:10,boxShadow:'0 4px 16px rgba(0,0,0,0.12)',zIndex:100,minWidth:140,padding:'6px 0'}}>
                     <div onClick={()=>{setSelectedGroups([]);setGroupDropOpen(false);}}
                       style={{padding:'7px 14px',fontSize:13,cursor:'pointer',fontWeight:selectedGroups.length===0?700:400,color:selectedGroups.length===0?'#6366f1':'#374151',background:selectedGroups.length===0?'#f5f3ff':'white'}}>
                       전체 보기
@@ -1290,49 +1316,95 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               </div>
             )}
           </div>
-          </div>
-          {/* 2줄: Task 업무유형 범례 가로 */}
-          <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 12px 7px',flexWrap:'wrap'}}>
-            <span style={{fontSize:11,color:'#6b7280',fontWeight:700,flexShrink:0}}>업무유형:</span>
-            {CATEGORIES.filter(cat=>cat!=='영업').map(cat => {
-              const cc = CATEGORY_COLORS[cat];
-              return (
-                <div key={cat} style={{display:'flex',alignItems:'center',gap:3,flexShrink:0}}>
-                  <div style={{width:10,height:10,borderRadius:2,background:cc.border,flexShrink:0}}/>
-                  <span style={{fontSize:11,color:'#4b5563',fontWeight:600}}>{cat}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        ) : (
+          /* 모바일: 기존 2줄 레이아웃 */
+          <>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',gap:8}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                <button onClick={()=>setCalMonth((m: number)=>Math.max(1,m-1))} disabled={calMonth===1}
+                  style={{width:28,height:28,borderRadius:8,border:'1px solid #e5e7eb',background:calMonth===1?'#f9fafb':'white',cursor:calMonth===1?'default':'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',color:calMonth===1?'#d1d5db':'#374151'}}>‹</button>
+                <span style={{fontSize:16,fontWeight:800,color:'#1e293b',whiteSpace:'nowrap',textAlign:'center'}}>2026년 {calMonth}월</span>
+                <button onClick={()=>setCalMonth((m: number)=>Math.min(12,m+1))} disabled={calMonth===12}
+                  style={{width:28,height:28,borderRadius:8,border:'1px solid #e5e7eb',background:calMonth===12?'#f9fafb':'white',cursor:calMonth===12?'default':'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',color:calMonth===12?'#d1d5db':'#374151'}}>›</button>
+                {/* 그룹 드롭다운 */}
+                {allGroups && allGroups.length > 0 && (
+                  <div ref={groupDropRef} style={{position:'relative'}}>
+                    <button onClick={()=>setGroupDropOpen(o=>!o)}
+                      style={{display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:8,border:`1px solid ${selectedGroups.length>0?'#6366f1':'#e5e7eb'}`,background:selectedGroups.length>0?'#eef2ff':'white',fontSize:12,fontWeight:selectedGroups.length>0?700:400,color:selectedGroups.length>0?'#4338ca':'#374151',cursor:'pointer',whiteSpace:'nowrap'}}>
+                      📁 {selectedGroups.length===0?'전체그룹':`${selectedGroups.length}개 선택`}
+                      <span style={{fontSize:10,opacity:0.6}}>{groupDropOpen?'▲':'▼'}</span>
+                    </button>
+                    {groupDropOpen && (
+                      <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,background:'white',border:'1px solid #e5e7eb',borderRadius:10,boxShadow:'0 4px 16px rgba(0,0,0,0.12)',zIndex:100,minWidth:140,padding:'6px 0'}}>
+                        <div onClick={()=>{setSelectedGroups([]);setGroupDropOpen(false);}}
+                          style={{padding:'7px 14px',fontSize:13,cursor:'pointer',fontWeight:selectedGroups.length===0?700:400,color:selectedGroups.length===0?'#6366f1':'#374151',background:selectedGroups.length===0?'#f5f3ff':'white'}}>
+                          전체 보기
+                        </div>
+                        <div style={{height:1,background:'#f1f5f9',margin:'4px 0'}}/>
+                        {allGroups.map((g: string) => {
+                          const isSelected = selectedGroups.includes(g);
+                          return (
+                            <div key={g} onClick={()=>setSelectedGroups(prev=>prev.includes(g)?prev.filter(x=>x!==g):[...prev,g])}
+                              style={{display:'flex',alignItems:'center',gap:8,padding:'7px 14px',fontSize:13,cursor:'pointer',background:isSelected?'#f5f3ff':'white',color:isSelected?'#4338ca':'#374151',fontWeight:isSelected?600:400}}>
+                              <div style={{width:14,height:14,borderRadius:3,border:`2px solid ${isSelected?'#6366f1':'#d1d5db'}`,background:isSelected?'#6366f1':'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                {isSelected && <span style={{color:'white',fontSize:10,lineHeight:1}}>✓</span>}
+                              </div>
+                              {g}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* FIX 2: 영업 포함 전체 업무유형 범례 */}
+            <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 12px 7px',flexWrap:'wrap'}}>
+              <span style={{fontSize:11,color:'#6b7280',fontWeight:700,flexShrink:0}}>업무유형:</span>
+              {CATEGORIES.map(cat => {
+                const cc = CATEGORY_COLORS[cat];
+                return (
+                  <div key={cat} style={{display:'flex',alignItems:'center',gap:3,flexShrink:0}}>
+                    <div style={{width:10,height:10,borderRadius:2,background:cc.border,flexShrink:0}}/>
+                    <span style={{fontSize:11,color:'#4b5563',fontWeight:600}}>{cat}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
 
-        <div style={{display:'grid',gridTemplateColumns:GRID_COLS,borderBottom:'2px solid #e2e8f0',background:'white',flexShrink:0}}>
-          {WEEKDAYS_ALL.map((wd, i) => {
-            const isSun = i === 0, isSat = i === 6;
-            return (
-              <div key={i} style={{
-                padding:'7px 0', textAlign:'center',
-                fontSize: 13,
-                fontWeight: 700,
-                color: isSun ? '#ef4444' : isSat ? '#2563eb' : '#374151',
-                borderRight: i < 6 ? '1px solid #e5e7eb' : 'none',
-                background: isSun ? '#fff5f5' : isSat ? '#eff6ff' : 'white',
-              }}>{wd}</div>
-            );
-          })}
-        </div>
+      <div style={{display:'grid',gridTemplateColumns:GRID_COLS,borderBottom:'2px solid #e2e8f0',background:'white',flexShrink:0}}>
+        {WEEKDAYS_ALL.map((wd, i) => {
+          const isSun = i === 0, isSat = i === 6;
+          return (
+            <div key={i} style={{
+              padding:'7px 0', textAlign:'center',
+              fontSize: 13,
+              fontWeight: 700,
+              color: isSun ? '#ef4444' : isSat ? '#2563eb' : '#374151',
+              borderRight: i < 6 ? '1px solid #e5e7eb' : 'none',
+              background: isSun ? '#fff5f5' : isSat ? '#eff6ff' : 'white',
+            }}>{wd}</div>
+          );
+        })}
+      </div>
 
-        <div style={{display:'flex', flexDirection:'column'}}>
+      {/* FIX 5: 스크롤 없이 화면을 꽉 채우도록 */}
+      <div ref={calScrollRef} style={{flex:1,overflowY:'auto',background:'#f8fafc',display:'flex',flexDirection:'column'}}>
+        <div style={{display:'flex',flexDirection:'column',flex:1}}>
           {weeks.map((week, wi) => {
-            const ROW_H = weekRowHeights[wi] || (CELL_PAD + MIN_LANES * (LANE_H + LANE_GAP) + 8);
+            const ROW_H = finalRowHeights[wi] || CELL_TOP_PAD + MIN_LANES * (LANE_H + LANE_GAP) + 8;
             return (
             <div key={wi} style={{
               display:'grid', gridTemplateColumns:GRID_COLS,
               borderBottom:'1px solid #e5e7eb',
               background:'white',
-              height: ROW_H,
               minHeight: ROW_H,
               position:'relative',
+              flex: '1',
             }}>
               {week.map((day, di) => {
                 const isSun = di === 0, isSat = di === 6;
@@ -1340,8 +1412,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 return (
                   <div key={di} style={{
                     borderRight: di < 6 ? `1px solid ${isWeekend ? '#e5e7eb' : '#f1f5f9'}` : 'none',
-                    minHeight: ROW_H,
-                    height: ROW_H,
+                    height: '100%',
                     background: day?.isHoliday ? 'rgba(254,242,242,0.7)'
                       : day?.isToday ? 'rgba(238,242,255,0.7)'
                       : isSun ? 'rgba(255,245,245,0.4)'
@@ -1365,6 +1436,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                           : isSat ? '#2563eb'
                           : '#374151',
                         lineHeight: 1,
+                        height: 18,
                       }}>
                         {day.date.getDate() === 1
                           ? <span style={{fontWeight:800, fontSize: 12}}>
@@ -1374,8 +1446,23 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                         }
                       </div>
                     )}
+                    {/* FIX 3+4: 공휴일 텍스트 - 날짜 바로 밑에, 폰트 키움, 바와 겹치지 않게 */}
                     {!isWeekend && day?.isHoliday && (
-                      <div style={{position:'absolute',top:20,left:2,right:2,fontSize:isTouchDevice()?8:10,color:'#ef4444',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',lineHeight:1}}>
+                      <div style={{
+                        position:'absolute',
+                        top: 24,   // 날짜숫자(top:5 + height:18 + 1px gap) 바로 아래
+                        left: 2,
+                        right: 2,
+                        fontSize: 11,   // FIX 3: 기존 8~10px → 11px
+                        color: '#ef4444',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        lineHeight: 1.2,
+                        zIndex: 3,       // FIX 4: 바보다 위
+                        pointerEvents: 'none',
+                      }}>
                         {day.holidayName}
                       </div>
                     )}
@@ -1387,7 +1474,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               })}
 
               {taskBars[wi].map((bar: any, bi: number) => {
-                const topOffset = CELL_PAD + bar.lane * (LANE_H + LANE_GAP);
+                // FIX 4: 바의 top offset을 CELL_TOP_PAD 기준으로 (공휴일 텍스트 영역 아래에서 시작)
+                const topOffset = CELL_TOP_PAD + bar.lane * (LANE_H + LANE_GAP);
                 const prog = bar.task.progress || 0;
                 const catColor = CATEGORY_COLORS[bar.task.category];
                 const barBg      = catColor ? catColor.border : bar.color;
@@ -1466,7 +1554,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           )}
         </div>
       )}
-      </>
+      </div>
     );
   };
 
@@ -1500,8 +1588,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
           @keyframes spin{to{transform:rotate(360deg)}}
           @keyframes fadeInDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
-          *, *::before, *::after { box-sizing: border-box; font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif; }
-          html, body { overflow-x: hidden; max-width: 100vw; }
+          *, *::before, *::after { box-sizing: border-box; font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif; color-scheme: light; }
+          html, body { overflow-x: hidden; max-width: 100vw; color-scheme: light; }
           .ms::-webkit-scrollbar{display:none} .ms{scrollbar-width:none}
           .ghdr:active{opacity:0.75} .btask:active{opacity:0.7}
           .hdr-collapsible{ overflow:hidden; transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease; }
@@ -1574,10 +1662,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
         {viewMode === 'month' && <MonthCalendarView
           calMonth={calMonth}
           setCalMonth={setCalMonth}
-          filtered={filtered.filter((p: any) => p.category !== '영업')}
+          filtered={filtered}
           todayStr2={todayStr()}
           onEditTask={(task: any, pid: number) => setEditingTask({ task, pid })}
           allGroups={allGroups}
+          isDesktop={false}
         />}
 
         {/* 카드뷰 스크롤 영역 */}
@@ -1769,7 +1858,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes fadeInDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
-        *{box-sizing:border-box; font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif;}
+        *{box-sizing:border-box; font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif; color-scheme: light;}
+        html, body { color-scheme: light; }
       `}</style>
 
       {/* Header */}
@@ -1788,27 +1878,29 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               </div>
               <div style={{width:1,height:18,background:'rgba(255,255,255,0.15)'}}/>
               <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.07)',borderRadius:8,padding:2,border:'1px solid rgba(255,255,255,0.12)',gap:0}}>
-                <button onClick={()=>switchViewMode('year')}
-                  style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='year'?700:400,background:viewMode==='year'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='year'?'white':'rgba(148,163,184,0.8)'}}>년</button>
-                <button onClick={()=>switchViewMode('quarter')}
-                  style={{padding:'4px 9px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='quarter'?700:400,background:viewMode==='quarter'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='quarter'?'white':'rgba(148,163,184,0.8)'}}>분기</button>
-                <div style={{display:'flex',borderLeft:'1px solid rgba(255,255,255,0.1)',marginLeft:1,paddingLeft:1}}>
-                  {QUARTERS.map((q,i)=>(
-                    <button key={q.label}
-                      onClick={()=>{ if(viewMode!=='quarter') switchViewMode('quarter'); jumpToQuarter(i); }}
-                      style={{padding:'4px 7px',borderRadius:5,border:'none',cursor:'pointer',fontSize:10,fontWeight:700,
-                        background: viewMode==='quarter' ? 'rgba(99,102,241,0.25)' : 'transparent',
-                        color: viewMode==='quarter' ? '#c7d2fe' : 'rgba(148,163,184,0.4)',
-                        transition:'all 0.15s'}}
-                      onMouseEnter={e=>(e.currentTarget.style.background='rgba(99,102,241,0.4)')}
-                      onMouseLeave={e=>(e.currentTarget.style.background=viewMode==='quarter'?'rgba(99,102,241,0.25)':'transparent')}>
-                      {q.label}
-                    </button>
-                  ))}
+                <button onClick={()=>switchViewMode('month')}
+                  style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='month'?700:400,background:viewMode==='month'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='month'?'white':'rgba(148,163,184,0.8)'}}>월</button>
+                <div style={{borderLeft:'1px solid rgba(255,255,255,0.1)',marginLeft:1,paddingLeft:1,display:'flex',alignItems:'center'}}>
+                  <button onClick={()=>switchViewMode('quarter')}
+                    style={{padding:'4px 9px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='quarter'?700:400,background:viewMode==='quarter'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='quarter'?'white':'rgba(148,163,184,0.8)'}}>분기</button>
+                  <div style={{display:'flex',borderLeft:'1px solid rgba(255,255,255,0.1)',marginLeft:1,paddingLeft:1}}>
+                    {QUARTERS.map((q,i)=>(
+                      <button key={q.label}
+                        onClick={()=>{ if(viewMode!=='quarter') switchViewMode('quarter'); jumpToQuarter(i); }}
+                        style={{padding:'4px 7px',borderRadius:5,border:'none',cursor:'pointer',fontSize:10,fontWeight:700,
+                          background: viewMode==='quarter' ? 'rgba(99,102,241,0.25)' : 'transparent',
+                          color: viewMode==='quarter' ? '#c7d2fe' : 'rgba(148,163,184,0.4)',
+                          transition:'all 0.15s'}}
+                        onMouseEnter={e=>(e.currentTarget.style.background='rgba(99,102,241,0.4)')}
+                        onMouseLeave={e=>(e.currentTarget.style.background=viewMode==='quarter'?'rgba(99,102,241,0.25)':'transparent')}>
+                        {q.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div style={{borderLeft:'1px solid rgba(255,255,255,0.1)',marginLeft:1,paddingLeft:1}}>
-                  <button onClick={()=>switchViewMode('month')}
-                    style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='month'?700:400,background:viewMode==='month'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='month'?'white':'rgba(148,163,184,0.8)'}}>월</button>
+                  <button onClick={()=>switchViewMode('year')}
+                    style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='year'?700:400,background:viewMode==='year'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='year'?'white':'rgba(148,163,184,0.8)'}}>년</button>
                 </div>
               </div>
               <div style={{flex:1}}/>
@@ -1878,33 +1970,35 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
             <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.07)',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',padding:2,gap:1}}>
               <span style={{fontSize:10,color:'rgba(148,163,184,0.5)',padding:'0 4px',userSelect:'none'}}>🔍</span>
-              <button onClick={()=>switchViewMode('year')} title="연간 전체 보기"
-                style={{height:26,padding:'0 12px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='year'?700:400,background:viewMode==='year'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='year'?'white':'rgba(148,163,184,0.8)',transition:'all 0.15s'}}>
-                년
+              <button onClick={()=>switchViewMode('month')} title="월 캘린더 보기"
+                style={{height:26,padding:'0 12px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='month'?700:400,background:viewMode==='month'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='month'?'white':'rgba(148,163,184,0.8)',transition:'all 0.15s'}}>
+                월
               </button>
-              <button onClick={()=>switchViewMode('quarter')} title="분기별 주단위 보기"
-                style={{height:26,padding:'0 10px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='quarter'?700:400,background:viewMode==='quarter'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='quarter'?'white':'rgba(148,163,184,0.8)',transition:'all 0.15s'}}>
-                분기
-              </button>
-              <div style={{display:'flex',alignItems:'center',gap:0,borderLeft:'1px solid rgba(255,255,255,0.1)',marginLeft:1,paddingLeft:1}}>
-                {QUARTERS.map((q,i)=>(
-                  <button key={q.label}
-                    onClick={()=>{ if(viewMode!=='quarter') switchViewMode('quarter'); jumpToQuarter(i); }}
-                    title={`${q.label}로 이동`}
-                    style={{height:26,padding:'0 9px',borderRadius:6,border:'none',cursor:'pointer',fontSize:11,fontWeight:700,
-                      background: viewMode==='quarter' ? 'rgba(99,102,241,0.25)' : 'transparent',
-                      color: viewMode==='quarter' ? '#c7d2fe' : 'rgba(148,163,184,0.4)',
-                      transition:'all 0.15s'}}
-                    onMouseEnter={e=>(e.currentTarget.style.background='rgba(99,102,241,0.4)')}
-                    onMouseLeave={e=>(e.currentTarget.style.background=viewMode==='quarter'?'rgba(99,102,241,0.25)':'transparent')}>
-                    {q.label}
-                  </button>
-                ))}
+              <div style={{display:'flex',alignItems:'center',borderLeft:'1px solid rgba(255,255,255,0.1)',marginLeft:1,paddingLeft:1}}>
+                <button onClick={()=>switchViewMode('quarter')} title="분기별 주단위 보기"
+                  style={{height:26,padding:'0 10px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='quarter'?700:400,background:viewMode==='quarter'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='quarter'?'white':'rgba(148,163,184,0.8)',transition:'all 0.15s'}}>
+                  분기
+                </button>
+                <div style={{display:'flex',alignItems:'center',gap:0,borderLeft:'1px solid rgba(255,255,255,0.1)',marginLeft:1,paddingLeft:1}}>
+                  {QUARTERS.map((q,i)=>(
+                    <button key={q.label}
+                      onClick={()=>{ if(viewMode!=='quarter') switchViewMode('quarter'); jumpToQuarter(i); }}
+                      title={`${q.label}로 이동`}
+                      style={{height:26,padding:'0 9px',borderRadius:6,border:'none',cursor:'pointer',fontSize:11,fontWeight:700,
+                        background: viewMode==='quarter' ? 'rgba(99,102,241,0.25)' : 'transparent',
+                        color: viewMode==='quarter' ? '#c7d2fe' : 'rgba(148,163,184,0.4)',
+                        transition:'all 0.15s'}}
+                      onMouseEnter={e=>(e.currentTarget.style.background='rgba(99,102,241,0.4)')}
+                      onMouseLeave={e=>(e.currentTarget.style.background=viewMode==='quarter'?'rgba(99,102,241,0.25)':'transparent')}>
+                      {q.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div style={{borderLeft:'1px solid rgba(255,255,255,0.1)',marginLeft:1,paddingLeft:1}}>
-                <button onClick={()=>switchViewMode('month')} title="월 캘린더 보기"
-                  style={{height:26,padding:'0 12px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='month'?700:400,background:viewMode==='month'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='month'?'white':'rgba(148,163,184,0.8)',transition:'all 0.15s'}}>
-                  월
+                <button onClick={()=>switchViewMode('year')} title="연간 전체 보기"
+                  style={{height:26,padding:'0 12px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:viewMode==='year'?700:400,background:viewMode==='year'?'rgba(99,102,241,0.9)':'transparent',color:viewMode==='year'?'white':'rgba(148,163,184,0.8)',transition:'all 0.15s'}}>
+                  년
                 </button>
               </div>
             </div>
@@ -1961,9 +2055,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       {viewMode === 'month' && <MonthCalendarView
         calMonth={calMonth}
         setCalMonth={setCalMonth}
-        filtered={filtered.filter((p: any) => p.category !== '영업')}
+        filtered={filtered}
         todayStr2={todayStr()}
         onEditTask={(task: any, pid: number) => setEditingTask({ task, pid })}
+        allGroups={allGroups}
+        isDesktop={true}
       />}
 
       {/* Chart (년/분기 모드) */}
