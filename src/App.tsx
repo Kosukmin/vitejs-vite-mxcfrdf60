@@ -831,13 +831,23 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       setTooltip((t:any)=>t?{...t,startDate:nsStr,endDate:neStr}:t);
     };
     const onUp = () => {
-      const d = dragRef.current; dragRef.current=null; setDragging(null);
-      document.body.style.cursor=''; document.body.style.userSelect='';
-      if (d) {
-        setProjects(prev => {
-          const latest = prev; setSaving(true);
-          supabase.from('gantt_projects').upsert({ id: appId, data: latest })
-            .then(() => { setSaving(false); setTimeout(() => { isSavingRef.current = false; }, 1000); if (historyTimer.current) clearTimeout(historyTimer.current); historyTimer.current = setTimeout(() => { saveHistorySnapshot(latest); }, HISTORY_DEBOUNCE_MS); })
+    const d = dragRef.current; dragRef.current=null; setDragging(null);
+    document.body.style.cursor=''; document.body.style.userSelect='';
+    if (d) {
+    setProjects(prev => {
+    const latest = prev; setSaving(true);
+    supabase.from('gantt_projects').upsert({ id: appId, data: latest })
+    .then(() => {
+      setSaving(false);
+        setTimeout(() => { isSavingRef.current = false; }, 1000);
+          if (historyTimer.current) clearTimeout(historyTimer.current);
+            historyTimer.current = setTimeout(() => { saveHistorySnapshot(latest); }, HISTORY_DEBOUNCE_MS);
+              // ★ 드래그 저장 후 마지막 업데이트 시각 갱신
+              const now = new Date();
+              const formatted = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+              setLastUpdatedAt(formatted);
+              lastUpdatedAtCacheRef.current[appId] = formatted;
+            })
             .catch(() => { setSaving(false); setTimeout(() => { isSavingRef.current = false; }, 1000); });
           return latest;
         });
@@ -1563,9 +1573,13 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   </div>
                   {/* ★ undo/redo - 탭과 같은 높이로 나란히 */}
                   <UndoRedoButtons size="md" />
-                </div>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <p style={{fontSize:11,color:'rgba(148,163,184,0.8)',margin:0}}>2026년 · Supabase 연동 · 실시간 동기화 🟢{lastUpdatedAt && <span style={{marginLeft:8,color:'rgba(148,163,184,0.6)'}}>· 마지막 업데이트: {lastUpdatedAt}</span>}</p>
+                  <div style={{width:1,height:20,background:'rgba(255,255,255,0.15)'}} />
+                  <span style={{fontSize:13,color:'rgba(148,163,184,0.7)'}}>실시간 동기화 🟢</span>
+                  {lastUpdatedAt && (
+                    <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:13,color:'rgba(148,163,184,0.7)'}}>
+                      · 🕒 <span>마지막 업데이트:</span> <span style={{color:'rgba(203,213,225,0.9)',fontWeight:600}}>{lastUpdatedAt}</span>
+                    </span>
+                  )}
                   {realtimeToast && <span style={{fontSize:11,color:'#4ade80',background:'rgba(74,222,128,0.12)',padding:'2px 8px',borderRadius:10,border:'1px solid rgba(74,222,128,0.25)',fontWeight:600,animation:'fadeInDown 0.3s ease',display:'flex',alignItems:'center',gap:4}}>🔄 다른 팀원이 업데이트했습니다</span>}
                 </div>
               </div>
