@@ -515,6 +515,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const [uploadError, setUploadError]         = useState<string>('');
   const [calMonth, setCalMonth]               = useState<number>(() => new Date().getMonth() + 1);
   const [lastUpdatedAt, setLastUpdatedAt]     = useState<string>('');
+  // appId별 마지막 업데이트 시각 캐시 (앱 전환 시 덮어쓰기 방지)
+  const lastUpdatedAtCacheRef = useRef<Record<number, string>>({});
 
   // ★ 앱별 UI 상태 세션 캐시 (앱 전환 시 유지용)
   const uiCacheRef = useRef<Record<number, { collapsedGroups: string[]; expandedProjects: number[] }>>({});
@@ -670,8 +672,16 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     try {
       const { data, error } = await supabase.from('gantt_projects').select('data, updated_at').eq('id', appId).single();
       if (!error && data?.updated_at) {
-        const d = new Date(data.updated_at);
-        setLastUpdatedAt(`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+        // 세션 중 직접 저장한 캐시가 있으면 DB값으로 덮어쓰지 않음
+        const cached = lastUpdatedAtCacheRef.current[appId];
+        if (cached) {
+          setLastUpdatedAt(cached);
+        } else {
+          const d = new Date(data.updated_at);
+          const formatted = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+          setLastUpdatedAt(formatted);
+          lastUpdatedAtCacheRef.current[appId] = formatted;
+        }
       }
       if (!error && data) {
         const loaded: any[] = data.data || [];
@@ -707,7 +717,9 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     try {
       await supabase.from('gantt_projects').upsert({ id: appId, data: p });
       const now = new Date();
-      setLastUpdatedAt(`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`);
+      const formatted = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      setLastUpdatedAt(formatted);
+      lastUpdatedAtCacheRef.current[appId] = formatted; // 캐시에도 저장
     } catch {}
     finally { setSaving(false); setTimeout(() => { isSavingRef.current = false; }, 1000); }
     if (historyTimer.current) clearTimeout(historyTimer.current);
