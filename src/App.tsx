@@ -17,7 +17,8 @@ const QUARTERS = [
   { label: '4Q', months: [10,11,12], startWeek: 39, weekCount: 13 },
 ];
 
-const KR_HOLIDAYS_2026: Record<string, string> = {
+const KR_HOLIDAYS: Record<string, string> = {
+  // 2026
   '2026-01-01': '신정',
   '2026-02-16': '설날 전날',
   '2026-02-17': '설날',
@@ -37,6 +38,39 @@ const KR_HOLIDAYS_2026: Record<string, string> = {
   '2026-10-05': '개천절 대체공휴일',
   '2026-10-09': '한글날',
   '2026-12-25': '크리스마스',
+  // 2027
+  '2027-01-01': '신정',
+  '2027-01-27': '설날 전날',
+  '2027-01-28': '설날',
+  '2027-01-29': '설날 다음날',
+  '2027-03-01': '3·1절',
+  '2027-05-05': '어린이날',
+  '2027-05-13': '부처님오신날',
+  '2027-06-06': '현충일',
+  '2027-08-15': '광복절',
+  '2027-08-16': '광복절 대체공휴일',
+  '2027-09-14': '추석 전날',
+  '2027-09-15': '추석',
+  '2027-09-16': '추석 다음날',
+  '2027-10-03': '개천절',
+  '2027-10-04': '개천절 대체공휴일',
+  '2027-10-09': '한글날',
+  '2027-12-25': '크리스마스',
+  // 2028
+  '2028-01-01': '신정',
+  '2028-02-15': '설날 전날',
+  '2028-02-16': '설날',
+  '2028-02-17': '설날 다음날',
+  '2028-03-01': '3·1절',
+  '2028-05-02': '부처님오신날',
+  '2028-05-05': '어린이날',
+  '2028-06-06': '현충일',
+  '2028-08-15': '광복절',
+  '2028-10-02': '추석 전날',
+  '2028-10-03': '추석',
+  '2028-10-04': '추석 다음날',
+  '2028-10-09': '한글날',
+  '2028-12-25': '크리스마스',
 };
 
 const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -491,6 +525,8 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const [searchQuery, setSearchQuery]         = useState('');
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const [activeGroup, setActiveGroup]         = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSearchItems, setSelectedSearchItems] = useState<string[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [loading, setLoading]                 = useState(true);
   const [saving, setSaving]                   = useState(false);
@@ -863,11 +899,41 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const rawGroups = Array.from(new Set(projects.map(p => p.group || '미분류')));
   const allGroups = [...groupOrder.filter(g => rawGroups.includes(g)), ...rawGroups.filter(g => !groupOrder.includes(g))];
 
+  const splitNames = (s: string) => s ? s.split(/[,、]\s*/).map((n:string) => n.trim()).filter(Boolean) : [];
+  const allPeople = Array.from(new Set([
+    ...projects.map((p:any) => p.owner),
+    ...projects.map((p:any) => p.subOwner),
+    ...projects.flatMap((p:any) => p.tasks.flatMap((t:any) => [...splitNames(t.assignee), ...splitNames(t.subAssignee)])),
+  ].filter(Boolean))).sort() as string[];
+
+  const personInField = (field: string | undefined, person: string) => field ? splitNames(field).includes(person) : false;
+
+  const sq = searchQuery.toLowerCase();
+  const searchSuggestions = searchQuery.trim() ? {
+    projects: projects.filter((p:any) => p.name.toLowerCase().includes(sq)).map((p:any) => p.name).slice(0, 8),
+    people: allPeople.filter((n:string) => n.toLowerCase().includes(sq)).slice(0, 8),
+  } : { projects: [], people: [] };
+  const allSuggestionValues = [...searchSuggestions.projects, ...searchSuggestions.people];
+
+  const hasSelection = selectedSearchItems.length > 0;
+  const selectedPeople = selectedSearchItems.filter(v => allPeople.includes(v));
+  const selectedProjects = selectedSearchItems.filter(v => !allPeople.includes(v));
+  const isPersonFilter = !hasSelection && searchQuery !== '' && allPeople.includes(searchQuery);
+
   const filtered = projects
     .filter(p => { if (activeCategories.length === 0) return true; return p.tasks.some((t: any) => activeCategories.includes(t.category)); })
     .map(p => { if (activeCategories.length === 0) return p; return { ...p, tasks: p.tasks.filter((t: any) => activeCategories.includes(t.category)) }; })
     .filter(p => activeGroup==='' || (p.group||'미분류')===activeGroup)
-    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.owner?.toLowerCase().includes(searchQuery.toLowerCase()) || p.tasks.some((t:any)=>t.name.toLowerCase().includes(searchQuery.toLowerCase())||t.assignee?.toLowerCase().includes(searchQuery.toLowerCase())));
+    .filter(p => {
+      if (hasSelection) return selectedProjects.includes(p.name) || selectedPeople.some(person => personInField(p.owner, person)||personInField(p.subOwner, person)||p.tasks.some((t:any)=>personInField(t.assignee, person)||personInField(t.subAssignee, person)));
+      return searchQuery==='' || p.name.toLowerCase().includes(sq) || p.owner?.toLowerCase().includes(sq) || p.subOwner?.toLowerCase().includes(sq) || p.tasks.some((t:any)=>t.name.toLowerCase().includes(sq)||t.assignee?.toLowerCase().includes(sq)||t.subAssignee?.toLowerCase().includes(sq));
+    })
+    .map(p => {
+      if (hasSelection && selectedPeople.length > 0 && !selectedProjects.includes(p.name)) return { ...p, tasks: p.tasks.filter((t:any)=>selectedPeople.some(person=>personInField(t.assignee, person)||personInField(t.subAssignee, person))) };
+      if (!hasSelection && isPersonFilter) return { ...p, tasks: p.tasks.filter((t:any)=>personInField(t.assignee, searchQuery)||personInField(t.subAssignee, searchQuery)) };
+      return p;
+    })
+    .filter(p => (hasSelection && selectedPeople.length > 0 && !selectedProjects.includes(p.name)) ? p.tasks.length > 0 : (!hasSelection && isPersonFilter) ? p.tasks.length > 0 : true);
 
   const groupedFiltered = allGroups
     .filter(g => activeGroup==='' || g===activeGroup)
@@ -1131,7 +1197,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       const firstDay = new Date(year, m - 1, 1); const lastDay = new Date(year, m, 0);
       for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
         const dow = d.getDay(); const ds = toDateStr(new Date(d));
-        days.push({ date: new Date(d), dateStr: ds, isToday: ds === todayStr2, isHoliday: !!KR_HOLIDAYS_2026[ds], holidayName: KR_HOLIDAYS_2026[ds] || '', dow });
+        days.push({ date: new Date(d), dateStr: ds, isToday: ds === todayStr2, isHoliday: !!KR_HOLIDAYS[ds], holidayName: KR_HOLIDAYS[ds] || '', dow });
       }
       return days;
     };
@@ -1305,7 +1371,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           <div style={{position:'fixed',left:localTooltipPos.x+14,top:localTooltipPos.y-8,background:'#111827',color:'white',fontSize:13,padding:'10px 14px',borderRadius:8,whiteSpace:'nowrap',pointerEvents:'none',zIndex:99999,boxShadow:'0 4px 16px rgba(0,0,0,0.45)',lineHeight:1.7,border:'1px solid rgba(255,255,255,0.08)'}}>
             {localTooltip.name && <div style={{fontWeight:700,marginBottom:4,color:'#f1f5f9',fontSize:14}}>{localTooltip.name}</div>}
             <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{color:'#6ee7b7',fontWeight:600,fontSize:13}}>▶</span><span style={{color:'#ffffff',fontWeight:600}}>{localTooltip.startDate}</span><span style={{color:'#9ca3af',fontSize:12,margin:'0 2px'}}>→</span><span style={{color:'#ffffff',fontWeight:600}}>{localTooltip.endDate}</span></div>
-            {localTooltip.startDate && KR_HOLIDAYS_2026[localTooltip.startDate] && (<div style={{fontSize:11,color:'#fca5a5',marginTop:3}}>🗓️ {KR_HOLIDAYS_2026[localTooltip.startDate]}</div>)}
+            {localTooltip.startDate && KR_HOLIDAYS[localTooltip.startDate] && (<div style={{fontSize:11,color:'#fca5a5',marginTop:3}}>🗓️ {KR_HOLIDAYS[localTooltip.startDate]}</div>)}
           </div>
         )}
       </div>
@@ -1586,8 +1652,41 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                 {saving && <div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'#4ade80',background:'rgba(74,222,128,0.1)',padding:'4px 10px',borderRadius:20,border:'1px solid rgba(74,222,128,0.2)'}}><div style={{width:10,height:10,border:'2px solid #4ade80',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}} />저장 중...</div>}
                 <div style={{position:'relative'}}>
-                  <span style={{position:'absolute',left:9,top:'50%',transform:'translateY(-50%)',color:'rgba(148,163,184,0.6)',fontSize:12}}>🔍</span>
-                  <input type="text" placeholder="검색..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} style={{paddingLeft:28,paddingRight:10,height:32,border:'1px solid rgba(255,255,255,0.12)',borderRadius:7,width:150,fontSize:12,outline:'none',background:'rgba(255,255,255,0.07)',color:'#f1f5f9'}} />
+                  <span style={{position:'absolute',left:9,top:'50%',transform:'translateY(-50%)',color:'rgba(148,163,184,0.6)',fontSize:12,zIndex:1,pointerEvents:'none'}}>🔍</span>
+                  <input type="text" placeholder="프로젝트 · 담당자 검색..." value={searchQuery} onChange={e=>{setSearchQuery(e.target.value);setShowSuggestions(true);}} onFocus={()=>setShowSuggestions(true)} onBlur={()=>setTimeout(()=>setShowSuggestions(false),150)} style={{paddingLeft:28,paddingRight:(searchQuery||selectedSearchItems.length>0)?28:10,height:32,border:`1px solid ${selectedSearchItems.length>0?'rgba(99,102,241,0.5)':'rgba(255,255,255,0.12)'}`,borderRadius:7,width:210,fontSize:12,outline:'none',background:'rgba(255,255,255,0.07)',color:'#f1f5f9'}} />
+                  {(searchQuery||selectedSearchItems.length>0) && <button onMouseDown={e=>{e.preventDefault();setSearchQuery('');setSelectedSearchItems([]);}} style={{position:'absolute',right:7,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:'rgba(148,163,184,0.7)',fontSize:16,padding:0,lineHeight:1}}>×</button>}
+                  {showSuggestions && (searchSuggestions.projects.length>0 || searchSuggestions.people.length>0) && (
+                    <div style={{position:'absolute',top:36,right:0,background:'#1e2235',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,boxShadow:'0 8px 24px rgba(0,0,0,0.5)',zIndex:200,overflow:'hidden',minWidth:260}}>
+                      <div onMouseDown={e=>e.preventDefault()} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 14px',borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
+                        <span style={{fontSize:12,color:'#94a3b8',fontWeight:600}}>검색 결과 {allSuggestionValues.length}개</span>
+                        <button onMouseDown={()=>{const allSelected=allSuggestionValues.every(v=>selectedSearchItems.includes(v));setSelectedSearchItems(allSelected?selectedSearchItems.filter(v=>!allSuggestionValues.includes(v)):[...new Set([...selectedSearchItems,...allSuggestionValues])]);}} style={{fontSize:12,color:'#818cf8',background:'none',border:'none',cursor:'pointer',padding:'2px 8px',borderRadius:4,fontWeight:700}}>
+                          {allSuggestionValues.every(v=>selectedSearchItems.includes(v))?'전체해제':'전체선택'}
+                        </button>
+                      </div>
+                      {searchSuggestions.projects.length>0 && <>
+                        <div style={{padding:'8px 14px 4px',fontSize:11,color:'#64748b',fontWeight:700,letterSpacing:'0.04em',textTransform:'uppercase'}}>프로젝트</div>
+                        {searchSuggestions.projects.map((name:string)=>{const checked=selectedSearchItems.includes(name);return(
+                          <div key={name} onMouseDown={()=>setSelectedSearchItems(prev=>prev.includes(name)?prev.filter(v=>v!==name):[...prev,name])} style={{padding:'8px 14px',fontSize:13,color:'#e2e8f0',cursor:'pointer',display:'flex',alignItems:'center',gap:9,background:checked?'rgba(99,102,241,0.15)':'transparent'}} onMouseEnter={e=>(e.currentTarget.style.background=checked?'rgba(99,102,241,0.25)':'rgba(255,255,255,0.06)')} onMouseLeave={e=>(e.currentTarget.style.background=checked?'rgba(99,102,241,0.15)':'transparent')}>
+                            <div style={{width:15,height:15,borderRadius:3,border:`1.5px solid ${checked?'#818cf8':'rgba(255,255,255,0.3)'}`,background:checked?'#818cf8':'transparent',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                              {checked&&<span style={{color:'white',fontSize:10,lineHeight:1}}>✓</span>}
+                            </div>
+                            <span>📁</span>{name}
+                          </div>
+                        );})}
+                      </>}
+                      {searchSuggestions.people.length>0 && <>
+                        <div style={{padding:'8px 14px 4px',fontSize:11,color:'#64748b',fontWeight:700,letterSpacing:'0.04em',textTransform:'uppercase',borderTop:searchSuggestions.projects.length>0?'1px solid rgba(255,255,255,0.07)':'none'}}>담당자</div>
+                        {searchSuggestions.people.map((name:string)=>{const checked=selectedSearchItems.includes(name);return(
+                          <div key={name} onMouseDown={()=>setSelectedSearchItems(prev=>prev.includes(name)?prev.filter(v=>v!==name):[...prev,name])} style={{padding:'8px 14px',fontSize:13,color:'#e2e8f0',cursor:'pointer',display:'flex',alignItems:'center',gap:9,background:checked?'rgba(99,102,241,0.15)':'transparent'}} onMouseEnter={e=>(e.currentTarget.style.background=checked?'rgba(99,102,241,0.25)':'rgba(255,255,255,0.06)')} onMouseLeave={e=>(e.currentTarget.style.background=checked?'rgba(99,102,241,0.15)':'transparent')}>
+                            <div style={{width:15,height:15,borderRadius:3,border:`1.5px solid ${checked?'#818cf8':'rgba(255,255,255,0.3)'}`,background:checked?'#818cf8':'transparent',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                              {checked&&<span style={{color:'white',fontSize:10,lineHeight:1}}>✓</span>}
+                            </div>
+                            <span>👤</span>{name}
+                          </div>
+                        );})}
+                      </>}
+                    </div>
+                  )}
                 </div>
                 <button onClick={loadHistory} style={{display:'flex',alignItems:'center',gap:5,height:32,padding:'0 11px',background:'rgba(124,58,237,0.85)',color:'white',border:'1px solid rgba(167,139,250,0.3)',borderRadius:7,cursor:'pointer',fontSize:12,fontWeight:500}}>🕐 히스토리</button>
                 <button onClick={exportXLSX} style={{display:'flex',alignItems:'center',gap:5,height:32,padding:'0 11px',background:'rgba(22,163,74,0.85)',color:'white',border:'1px solid rgba(74,222,128,0.2)',borderRadius:7,cursor:'pointer',fontSize:12,fontWeight:500}}>⬇ Excel 다운로드</button>
@@ -1628,11 +1727,22 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 {allGroups.map(g=>(<button key={g} onClick={()=>setActiveGroup(prev=>prev===g?'':g)} style={{padding:'5px 14px',borderRadius:20,fontSize:12,cursor:'pointer',fontWeight:activeGroup===g?600:400,border:activeGroup===g?'1.5px solid #818cf8':'1.5px solid rgba(255,255,255,0.4)',background:activeGroup===g?'rgba(99,102,241,0.35)':'rgba(255,255,255,0.12)',color:activeGroup===g?'#fff':'#e2e8f0'}}>{g} <span style={{fontSize:11,opacity:0.9}}>{projects.filter(p=>(p.group||'미분류')===g).length}</span></button>))}
               </>}
             </div>
+            {selectedSearchItems.length>0 && (
+              <div style={{display:'flex',gap:6,marginTop:6,alignItems:'center',flexWrap:'wrap'}}>
+                <span style={{fontSize:12,color:'#e2e8f0',flexShrink:0,fontWeight:600}}>담당자:</span>
+                {selectedSearchItems.map(item=>(
+                  <button key={item} onClick={()=>setSelectedSearchItems(prev=>prev.filter(v=>v!==item))} style={{padding:'5px 14px',borderRadius:20,fontSize:12,cursor:'pointer',fontWeight:600,border:'1.5px solid #818cf8',background:'rgba(99,102,241,0.35)',color:'#fff',display:'flex',alignItems:'center',gap:5}}>
+                    {allPeople.includes(item)?'👤':'📁'} {item} <span style={{opacity:0.7,fontSize:13,lineHeight:1}}>×</span>
+                  </button>
+                ))}
+                <button onClick={()=>setSelectedSearchItems([])} style={{fontSize:11,color:'#94a3b8',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>초기화</button>
+              </div>
+            )}
             <div style={{display:'flex',alignItems:'center',gap:16,marginTop:10,flexWrap:'wrap',paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.15)'}}>
               <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
-                <div style={{display:'flex',alignItems:'center',gap:5}}><div style={{width:10,height:10,borderRadius:'50%',background:'#f87171'}} /><span style={{fontSize:12,color:'#e2e8f0'}}>오늘</span></div>
-                <div style={{display:'flex',alignItems:'center',gap:5}}><div style={{width:28,height:9,borderRadius:3,background:'linear-gradient(to right,#3b82f6 50%,#bfdbfe 50%)'}} /><span style={{fontSize:12,color:'#e2e8f0'}}>진행률</span></div>
-                <span style={{fontSize:12,color:'#94a3b8'}}>⠿ 드래그로 순서 변경 | 바 드래그로 일정 조정 | 그룹명 더블클릭 이름 변경</span>
+                <div style={{display:'flex',alignItems:'center',gap:5}}><div style={{width:10,height:10,borderRadius:'50%',background:'#f87171'}} /><span style={{fontSize:13,color:'#e2e8f0'}}>오늘</span></div>
+                <div style={{display:'flex',alignItems:'center',gap:5}}><div style={{width:28,height:9,borderRadius:3,background:'linear-gradient(to right,#3b82f6 50%,#bfdbfe 50%)'}} /><span style={{fontSize:13,color:'#e2e8f0'}}>진행률</span></div>
+                <span style={{fontSize:13,color:'#94a3b8'}}>⠿ 드래그로 순서 변경 | 바 드래그로 일정 조정 | 그룹명 더블클릭 이름 변경</span>
               </div>
               <div style={{flex:1}}/>
               <div style={{display:'flex',gap:4}}>
@@ -1906,7 +2016,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
           : (<>
             {tooltip.name && <div style={{fontWeight:700,marginBottom:4,color:'#f1f5f9',fontSize:14}}>{tooltip.name}</div>}
             <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{color:'#6ee7b7',fontWeight:600,fontSize:13}}>▶</span><span style={{color:'#ffffff',fontWeight:600,letterSpacing:'0.3px'}}>{tooltip.startDate}</span><span style={{color:'#9ca3af',fontSize:12,margin:'0 2px'}}>→</span><span style={{color:'#ffffff',fontWeight:600,letterSpacing:'0.3px'}}>{tooltip.endDate}</span></div>
-            {tooltip.startDate && KR_HOLIDAYS_2026[tooltip.startDate] && (<div style={{fontSize:11,color:'#fca5a5',marginTop:3}}>🗓️ {KR_HOLIDAYS_2026[tooltip.startDate]}</div>)}
+            {tooltip.startDate && KR_HOLIDAYS[tooltip.startDate] && (<div style={{fontSize:11,color:'#fca5a5',marginTop:3}}>🗓️ {KR_HOLIDAYS[tooltip.startDate]}</div>)}
           </>)}
         </div>
       )}
