@@ -514,6 +514,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const [uploadPreview, setUploadPreview]     = useState<any[]|null>(null);
   const [uploadError, setUploadError]         = useState<string>('');
   const [calMonth, setCalMonth]               = useState<number>(() => new Date().getMonth() + 1);
+  const [lastUpdatedAt, setLastUpdatedAt]     = useState<string>('');
 
   // ★ 앱별 UI 상태 세션 캐시 (앱 전환 시 유지용)
   const uiCacheRef = useRef<Record<number, { collapsedGroups: string[]; expandedProjects: number[] }>>({});
@@ -667,7 +668,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('gantt_projects').select('data').eq('id', appId).single();
+      const { data, error } = await supabase.from('gantt_projects').select('data, updated_at').eq('id', appId).single();
+      if (!error && data?.updated_at) {
+        const d = new Date(data.updated_at);
+        setLastUpdatedAt(`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+      }
       if (!error && data) {
         const loaded: any[] = data.data || [];
         const cache = uiCacheRef.current[appId];
@@ -699,7 +704,11 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     setProjects(p);
     setSaving(true);
     isSavingRef.current = true;
-    try { await supabase.from('gantt_projects').upsert({ id: appId, data: p }); } catch {}
+    try {
+      await supabase.from('gantt_projects').upsert({ id: appId, data: p });
+      const now = new Date();
+      setLastUpdatedAt(`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`);
+    } catch {}
     finally { setSaving(false); setTimeout(() => { isSavingRef.current = false; }, 1000); }
     if (historyTimer.current) clearTimeout(historyTimer.current);
     historyTimer.current = setTimeout(() => saveHistorySnapshot(p, memo), HISTORY_DEBOUNCE_MS);
@@ -1544,7 +1553,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   <UndoRedoButtons size="md" />
                 </div>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <p style={{fontSize:11,color:'rgba(148,163,184,0.8)',margin:0}}>2026년 · Supabase 연동 · 실시간 동기화 🟢</p>
+                  <p style={{fontSize:11,color:'rgba(148,163,184,0.8)',margin:0}}>2026년 · Supabase 연동 · 실시간 동기화 🟢{lastUpdatedAt && <span style={{marginLeft:8,color:'rgba(148,163,184,0.6)'}}>· 마지막 업데이트: {lastUpdatedAt}</span>}</p>
                   {realtimeToast && <span style={{fontSize:11,color:'#4ade80',background:'rgba(74,222,128,0.12)',padding:'2px 8px',borderRadius:10,border:'1px solid rgba(74,222,128,0.25)',fontWeight:600,animation:'fadeInDown 0.3s ease',display:'flex',alignItems:'center',gap:4}}>🔄 다른 팀원이 업데이트했습니다</span>}
                 </div>
               </div>
