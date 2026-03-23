@@ -1689,9 +1689,9 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                   )}
                 </div>
                 <button onClick={loadHistory} style={{display:'flex',alignItems:'center',gap:5,height:32,padding:'0 11px',background:'rgba(124,58,237,0.85)',color:'white',border:'1px solid rgba(167,139,250,0.3)',borderRadius:7,cursor:'pointer',fontSize:12,fontWeight:500}}>🕐 히스토리</button>
-                <button onClick={exportXLSX} style={{display:'flex',alignItems:'center',gap:5,height:32,padding:'0 11px',background:'rgba(22,163,74,0.85)',color:'white',border:'1px solid rgba(74,222,128,0.2)',borderRadius:7,cursor:'pointer',fontSize:12,fontWeight:500}}>⬇ Excel 다운로드</button>
+                <button onClick={exportXLSX} style={{display:'flex',alignItems:'center',gap:5,height:32,padding:'0 11px',background:'rgba(22,163,74,0.85)',color:'white',border:'1px solid rgba(74,222,128,0.2)',borderRadius:7,cursor:'pointer',fontSize:12,fontWeight:500}}>⬇ Excel</button>
                 <label style={{display:'flex',alignItems:'center',gap:5,height:32,padding:'0 11px',background:'rgba(59,130,246,0.85)',color:'white',border:'1px solid rgba(96,165,250,0.3)',borderRadius:7,cursor:'pointer',fontSize:12,fontWeight:500}}>
-                  ⬆ Excel 업로드
+                  ⬆ Excel
                   <input type="file" accept=".xlsx,.xls" onChange={handleImportXLSX} style={{display:'none'}} />
                 </label>
                 <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.07)',borderRadius:8,border:'1px solid rgba(255,255,255,0.12)',padding:2,gap:1,height:32,boxSizing:'border-box'}}>
