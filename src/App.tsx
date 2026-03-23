@@ -1487,7 +1487,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                           <button onClick={()=>deleteProject(proj.id)} style={{padding:4,background:'none',border:'none',cursor:'pointer',fontSize:14,lineHeight:1}}>🗑️</button>
                         </div>
                       </div>
-                      {(proj.owner||proj.subOwner||projStart) && (<div style={{fontSize:11,color:'#94a3b8',marginBottom:6,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>{(proj.owner||proj.subOwner)&&<span>👤 {[proj.owner,proj.subOwner].filter(Boolean).join(' · ')}</span>}{projStart&&<span>📅 {projStart} → {projEnd}</span>}</div>)}
+                      {(proj.owner||proj.subOwner||projStart) && (<div style={{fontSize:11,color:'#94a3b8',marginBottom:6,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>{(proj.owner||proj.subOwner)&&<span style={{display:'inline-flex',alignItems:'center',gap:3}}><svg width="12" height="12" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>{[proj.owner,proj.subOwner].filter(Boolean).join(' · ')}</span>}{projStart&&<span>📅 {projStart} → {projEnd}</span>}</div>)}
                       {projMiniPos && (
                         <div style={{position:'relative',marginBottom:2}}>
                           <div style={{height:5,background:'rgba(255,255,255,0.05)',borderRadius:3,position:'relative',overflow:'visible'}}>
@@ -1681,7 +1681,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                             <div style={{width:15,height:15,borderRadius:3,border:`1.5px solid ${checked?'#818cf8':'rgba(255,255,255,0.3)'}`,background:checked?'#818cf8':'transparent',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
                               {checked&&<span style={{color:'white',fontSize:10,lineHeight:1}}>✓</span>}
                             </div>
-                            <span>👤</span>{name}
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>{name}
                           </div>
                         );})}
                       </>}
@@ -1732,7 +1732,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                 <span style={{fontSize:12,color:'#e2e8f0',flexShrink:0,fontWeight:600}}>담당자:</span>
                 {selectedSearchItems.map(item=>(
                   <button key={item} onClick={()=>setSelectedSearchItems(prev=>prev.filter(v=>v!==item))} style={{padding:'5px 14px',borderRadius:20,fontSize:12,cursor:'pointer',fontWeight:600,border:'1.5px solid #818cf8',background:'rgba(99,102,241,0.35)',color:'#fff',display:'flex',alignItems:'center',gap:5}}>
-                    {allPeople.includes(item)?'👤':'📁'} {item} <span style={{opacity:0.7,fontSize:13,lineHeight:1}}>×</span>
+                    {allPeople.includes(item)?<svg width="12" height="12" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>:'📁'} {item} <span style={{opacity:0.7,fontSize:13,lineHeight:1}}>×</span>
                   </button>
                 ))}
                 <button onClick={()=>setSelectedSearchItems([])} style={{fontSize:11,color:'#94a3b8',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>초기화</button>
@@ -2050,7 +2050,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                     <span style={{fontSize:11,color:'#6366f1',background:'rgba(99,102,241,0.1)',padding:'1px 7px',borderRadius:8,fontWeight:700}}>{proj.group}</span>
                     {proj.category && <span style={{fontSize:11,fontWeight:700,padding:'1px 6px',borderRadius:6,background:CATEGORY_COLORS[proj.category]?.bg||'#f1f5f9',color:CATEGORY_COLORS[proj.category]?.text||'#374151',border:`1px solid ${CATEGORY_COLORS[proj.category]?.border||'#e5e7eb'}`}}>{proj.category}</span>}
                     <span style={{fontSize:13,fontWeight:700,color:'#1e293b',flex:1}}>{proj.name}</span>
-                    {proj.owner && <span style={{fontSize:11,color:'#64748b'}}>👤 {proj.owner}</span>}
+                    {proj.owner && <span style={{fontSize:11,color:'#64748b',display:'inline-flex',alignItems:'center',gap:3}}><svg width="12" height="12" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>{proj.owner}</span>}
                   </div>
                   {proj.tasks.length > 0 && (
                     <div style={{padding:'6px 12px'}}>
@@ -2058,7 +2058,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                         <div key={ti} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:ti<proj.tasks.length-1?'1px solid #f1f5f9':'none'}}>
                           <span style={{fontSize:11,color:'#c4b5fd'}}>└</span>
                           <span style={{fontSize:12,color:'#374151',flex:1}}>{t.name}</span>
-                          {t.assignee && <span style={{fontSize:11,color:'#94a3b8'}}>👤 {t.assignee}</span>}
+                          {t.assignee && <span style={{fontSize:11,color:'#94a3b8',display:'inline-flex',alignItems:'center',gap:3}}><svg width="12" height="12" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>{t.assignee}</span>}
                           {t.startDate && <span style={{fontSize:11,color:'#94a3b8'}}>{t.startDate} ~ {t.endDate}</span>}
                         </div>
                       ))}
