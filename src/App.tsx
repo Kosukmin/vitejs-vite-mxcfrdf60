@@ -757,7 +757,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
       setLastUpdatedAt(formatted);
       lastUpdatedAtCacheRef.current[appId] = formatted; // 캐시에도 저장
     } catch {}
-    finally { setSaving(false); setTimeout(() => { isSavingRef.current = false; }, 1000); }
+    finally { setSaving(false); setTimeout(() => { isSavingRef.current = false; }, 3000); }
     if (historyTimer.current) clearTimeout(historyTimer.current);
     historyTimer.current = setTimeout(() => saveHistorySnapshot(p, memo), HISTORY_DEBOUNCE_MS);
   };
@@ -875,7 +875,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
     supabase.from('gantt_projects').upsert({ id: appId, data: latest })
     .then(() => {
       setSaving(false);
-        setTimeout(() => { isSavingRef.current = false; }, 1000);
+        setTimeout(() => { isSavingRef.current = false; }, 3000);
           if (historyTimer.current) clearTimeout(historyTimer.current);
             historyTimer.current = setTimeout(() => { saveHistorySnapshot(latest); }, HISTORY_DEBOUNCE_MS);
               // ★ 드래그 저장 후 마지막 업데이트 시각 갱신
@@ -884,10 +884,10 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
               setLastUpdatedAt(formatted);
               lastUpdatedAtCacheRef.current[appId] = formatted;
             })
-            .catch(() => { setSaving(false); setTimeout(() => { isSavingRef.current = false; }, 1000); });
+            .catch(() => { setSaving(false); setTimeout(() => { isSavingRef.current = false; }, 3000); });
           return latest;
         });
-      } else { setTimeout(() => { isSavingRef.current = false; }, 1500); }
+      } else { setTimeout(() => { isSavingRef.current = false; }, 3000); }
     };
     document.body.style.userSelect='none';
     document.body.style.cursor=dragging.type==='move'?'grabbing':'ew-resize';
@@ -1545,7 +1545,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
   // ── 데스크탑 / 태블릿 가로 간트차트 뷰 ──────────────────────
 
   const QuarterHeader = () => (
-    <div style={{position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'2px solid #e2e8f0',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW}}>
+    <div style={{position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'2px solid #e2e8f0',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW,overflow:'visible'}}>
       <div style={{display:'flex',height:22,borderBottom:'1px solid #e8ecf8'}}>
         <div style={{width:isCompactUI?22:LEFT_COL+ASSIGNEE_COL+SUB_COL,minWidth:isCompactUI?22:LEFT_COL+ASSIGNEE_COL+SUB_COL,flexShrink:0,background:'#f9fafb',borderRight:'1px solid #e5e7eb',position:'sticky',left:0,zIndex:10}} />
         <div style={{display:'flex',width:TIMELINE_W,minWidth:TIMELINE_W,flexShrink:0,overflow:'hidden'}}>
@@ -1646,7 +1646,6 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
                       · 🕒 <span>마지막 업데이트:</span> <span style={{color:'rgba(203,213,225,0.9)',fontWeight:600}}>{lastUpdatedAt}</span>
                     </span>
                   )}
-                  {realtimeToast && <span style={{fontSize:11,color:'#4ade80',background:'rgba(74,222,128,0.12)',padding:'2px 8px',borderRadius:10,border:'1px solid rgba(74,222,128,0.25)',fontWeight:600,animation:'fadeInDown 0.3s ease',display:'flex',alignItems:'center',gap:4}}>🔄 다른 팀원이 업데이트했습니다</span>}
                 </div>
               </div>
               <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
@@ -1756,7 +1755,13 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
       {viewMode === 'month' && <MonthCalendarView calMonth={calMonth} setCalMonth={setCalMonth} filtered={filtered} todayStr2={todayStr()} onEditTask={(task: any, pid: number) => setEditingTask({ task, pid })} allGroups={allGroups} isDesktop={true} />}
 
-      {viewMode !== 'month' && <div ref={chartScrollRef} style={{overflowX:'auto',overflowY:'auto',flex:1}}>
+      {viewMode !== 'month' && <div style={{flex:1,display:'flex',flexDirection:'column',position:'relative'}}>
+        {realtimeToast && (
+          <div style={{position:'absolute',top:0,left:0,right:0,height:44,display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,pointerEvents:'none'}}>
+            <span style={{fontSize:12,color:'#4ade80',background:'rgba(10,14,28,0.9)',padding:'6px 18px',borderRadius:20,border:'1px solid rgba(74,222,128,0.45)',fontWeight:600,animation:'fadeInDown 0.3s ease',display:'flex',alignItems:'center',gap:6,boxShadow:'0 4px 20px rgba(0,0,0,0.5)',whiteSpace:'nowrap',backdropFilter:'blur(10px)'}}>🔄 다른 팀원이 업데이트했습니다</span>
+          </div>
+        )}
+      <div ref={chartScrollRef} style={{overflowX:'auto',overflowY:'auto',flex:1}}>
         <div style={{minWidth:totalW}}>
           {viewMode === 'quarter' ? <QuarterHeader /> : (
             <div style={{display:'flex',position:'sticky',top:0,zIndex:20,background:'white',borderBottom:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',width:totalW,height:42}}>
@@ -2007,6 +2012,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
             ))}
           </div>
         </div>
+      </div>
       </div>}
 
       {tooltip && (tooltip.holidayOnly || tooltip.descOnly || tooltip.startDate) && (
