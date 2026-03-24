@@ -1755,7 +1755,7 @@ function GanttChart({ user, appId, onAppChange, onLogout }: { user: any; appId: 
 
       {viewMode === 'month' && <MonthCalendarView calMonth={calMonth} setCalMonth={setCalMonth} filtered={filtered} todayStr2={todayStr()} onEditTask={(task: any, pid: number) => setEditingTask({ task, pid })} allGroups={allGroups} isDesktop={true} />}
 
-      {viewMode !== 'month' && <div style={{flex:1,display:'flex',flexDirection:'column',position:'relative'}}>
+      {viewMode !== 'month' && <div style={{flex:1,display:'flex',flexDirection:'column',position:'relative',minHeight:0}}>
         {realtimeToast && (
           <div style={{position:'absolute',top:0,left:0,right:0,height:44,display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,pointerEvents:'none'}}>
             <span style={{fontSize:12,color:'#4ade80',background:'rgba(10,14,28,0.9)',padding:'6px 18px',borderRadius:20,border:'1px solid rgba(74,222,128,0.45)',fontWeight:600,animation:'fadeInDown 0.3s ease',display:'flex',alignItems:'center',gap:6,boxShadow:'0 4px 20px rgba(0,0,0,0.5)',whiteSpace:'nowrap',backdropFilter:'blur(10px)'}}>🔄 다른 팀원이 업데이트했습니다</span>
